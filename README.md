@@ -1,6 +1,6 @@
 # RustyNotes
 
-A rust and gtk-rs markdown note taking app.
+A rust and iced markdown note taking app.
 
 ## Roadmap
 
@@ -13,4 +13,4 @@ A rust and gtk-rs markdown note taking app.
 - [ ] Fast opening
 - [ ] Fast operations
 - [ ] Choose fonts
-- [ ] Either follow GNOME theme or select personal theme (.rusty/themes)
+- [ ] Select personal theme (.rusty/themes) (should be able to follow the night/day of os)
