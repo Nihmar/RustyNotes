@@ -67,7 +67,7 @@ cargo audit
 - Follow standard Rust naming conventions (snake_case for functions/variables, PascalCase for types)
 - Use meaningful, descriptive names
 - Keep lines under 100 characters when possible
-- Use Rust 2021 edition or later
+- Use Rust 2024 edition
 
 ### Imports
 
