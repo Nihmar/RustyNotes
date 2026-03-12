@@ -1,42 +1,7 @@
 use gtk4::prelude::*;
 use gtk4::{TextBuffer, TextTag, TextTagTable, TextView, WrapMode};
-use regex::Regex;
 use std::cell::RefCell;
-use std::sync::{Arc, OnceLock};
-
-struct RegexPatterns {
-    h1: Regex,
-    h2: Regex,
-    h3: Regex,
-    bold: Regex,
-    italic: Regex,
-    code_inline: Regex,
-    code_block: Regex,
-    link: Regex,
-    list: Regex,
-}
-
-impl RegexPatterns {
-    fn new() -> Self {
-        Self {
-            h1: Regex::new(r"^# .+$").unwrap(),
-            h2: Regex::new(r"^## .+$").unwrap(),
-            h3: Regex::new(r"^### .+$").unwrap(),
-            bold: Regex::new(r"\*\*[^*]+\*\*|__[^_]+__").unwrap(),
-            italic: Regex::new(r"\*[^*]+\*|_[^_]+_").unwrap(),
-            code_inline: Regex::new(r"`[^`]+`").unwrap(),
-            code_block: Regex::new(r"```[\s\S]*?```").unwrap(),
-            link: Regex::new(r"\[[^\]]+\]\([^)]+\)").unwrap(),
-            list: Regex::new(r"^[\s]*[-*+]\s").unwrap(),
-        }
-    }
-}
-
-static REGEX_PATTERNS: OnceLock<RegexPatterns> = OnceLock::new();
-
-fn get_regex_patterns() -> &'static RegexPatterns {
-    REGEX_PATTERNS.get_or_init(RegexPatterns::new)
-}
+use std::sync::Arc;
 
 pub struct MarkdownHighlighter {
     buffer: TextBuffer,
@@ -54,23 +19,36 @@ impl MarkdownHighlighter {
     }
 
     fn setup_tags(&self) {
-        let header1 = TextTag::new(Some("h1"));
-        header1.set_property("size-points", 24.0);
-        header1.set_property("weight", 700);
-        header1.set_property("foreground", &"#2563eb");
-        self.tag_table.add(&header1);
+        let h1 = TextTag::new(Some("h1"));
+        h1.set_property("size-points", 24.0);
+        h1.set_property("weight", 700);
+        h1.set_property("foreground", &"#2563eb");
+        self.tag_table.add(&h1);
 
-        let header2 = TextTag::new(Some("h2"));
-        header2.set_property("size-points", 20.0);
-        header2.set_property("weight", 600);
-        header2.set_property("foreground", &"#1d4ed8");
-        self.tag_table.add(&header2);
+        let h2 = TextTag::new(Some("h2"));
+        h2.set_property("size-points", 20.0);
+        h2.set_property("weight", 600);
+        h2.set_property("foreground", &"#1d4ed8");
+        self.tag_table.add(&h2);
 
-        let header3 = TextTag::new(Some("h3"));
-        header3.set_property("size-points", 18.0);
-        header3.set_property("weight", 600);
-        header3.set_property("foreground", &"#1e40af");
-        self.tag_table.add(&header3);
+        let h3 = TextTag::new(Some("h3"));
+        h3.set_property("size-points", 18.0);
+        h3.set_property("weight", 600);
+        h3.set_property("foreground", &"#1e40af");
+        self.tag_table.add(&h3);
+
+        let tag = TextTag::new(Some("tag"));
+        tag.set_property("foreground", &"#dc2626");
+        self.tag_table.add(&tag);
+
+        let checkbox = TextTag::new(Some("checkbox"));
+        checkbox.set_property("foreground", &"#7c3aed");
+        checkbox.set_property("weight", 600);
+        self.tag_table.add(&checkbox);
+
+        let list_marker = TextTag::new(Some("list"));
+        list_marker.set_property("foreground", &"#059669");
+        self.tag_table.add(&list_marker);
 
         let bold = TextTag::new(Some("bold"));
         bold.set_property("weight", 700);
@@ -90,10 +68,6 @@ impl MarkdownHighlighter {
         link.set_property("foreground", &"#0369a1");
         link.set_property("underline", gtk4::pango::Underline::Single);
         self.tag_table.add(&link);
-
-        let list = TextTag::new(Some("list"));
-        list.set_property("foreground", &"#059669");
-        self.tag_table.add(&list);
     }
 
     pub fn get_buffer(&self) -> TextBuffer {
@@ -107,27 +81,177 @@ impl MarkdownHighlighter {
         let end = self.buffer.end_iter();
         self.buffer.remove_all_tags(&start, &end);
 
-        let patterns = get_regex_patterns();
+        let total_len = end.offset();
 
-        self.apply_regex("h1", &patterns.h1, text);
-        self.apply_regex("h2", &patterns.h2, text);
-        self.apply_regex("h3", &patterns.h3, text);
-        self.apply_regex("bold", &patterns.bold, text);
-        self.apply_regex("italic", &patterns.italic, text);
-        self.apply_regex("code", &patterns.code_inline, text);
-        self.apply_regex("code", &patterns.code_block, text);
-        self.apply_regex("link", &patterns.link, text);
-        self.apply_regex("list", &patterns.list, text);
+        let mut pos: i32 = 0;
+        let mut in_code_block = false;
+
+        for line in text.lines() {
+            let line_len = line.len() as i32;
+
+            if line.is_empty() {
+                pos += 1;
+                continue;
+            }
+
+            if !in_code_block && line.starts_with("```") {
+                in_code_block = true;
+                self.apply_tag("code", pos, pos + line_len, total_len);
+                pos += line_len + 1;
+                continue;
+            }
+
+            if in_code_block && line.starts_with("```") {
+                in_code_block = false;
+                self.apply_tag("code", pos, pos + line_len, total_len);
+                pos += line_len + 1;
+                continue;
+            }
+
+            if in_code_block {
+                self.apply_tag("code", pos, pos + line_len, total_len);
+                pos += line_len + 1;
+                continue;
+            }
+
+            let trimmed = line.trim_start();
+
+            if trimmed.starts_with("### ") {
+                self.apply_tag(
+                    "h3",
+                    pos + (line.len() as i32 - trimmed.len() as i32),
+                    pos + line_len,
+                    total_len,
+                );
+                pos += line_len + 1;
+                continue;
+            }
+            if trimmed.starts_with("## ") {
+                self.apply_tag(
+                    "h2",
+                    pos + (line.len() as i32 - trimmed.len() as i32),
+                    pos + line_len,
+                    total_len,
+                );
+                pos += line_len + 1;
+                continue;
+            }
+            if trimmed.starts_with("# ") {
+                self.apply_tag(
+                    "h1",
+                    pos + (line.len() as i32 - trimmed.len() as i32),
+                    pos + line_len,
+                    total_len,
+                );
+                pos += line_len + 1;
+                continue;
+            }
+
+            if trimmed.starts_with("- [")
+                || trimmed.starts_with("* [")
+                || trimmed.starts_with("+ [")
+            {
+                let marker_end = if trimmed.starts_with("- [") {
+                    4
+                } else if trimmed.starts_with("* [") {
+                    4
+                } else {
+                    4
+                };
+                self.apply_tag("checkbox", pos, pos + marker_end, total_len);
+                pos += line_len + 1;
+                continue;
+            }
+
+            if trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ") {
+                self.apply_tag("list", pos, pos + 2, total_len);
+                pos += line_len + 1;
+                continue;
+            }
+
+            let bytes = line.as_bytes();
+            let mut i = 0;
+            while i < bytes.len() {
+                if bytes[i] == b'`' {
+                    let mut j = i + 1;
+                    while j < bytes.len() && bytes[j] != b'`' {
+                        j += 1;
+                    }
+                    if j > i + 1 && j < bytes.len() {
+                        self.apply_tag("code", pos + i as i32, pos + j as i32 + 1, total_len);
+                        i = j + 1;
+                        continue;
+                    }
+                }
+                if bytes[i] == b'[' {
+                    let mut j = i + 1;
+                    while j < bytes.len() && bytes[j] != b']' {
+                        j += 1;
+                    }
+                    if j + 1 < bytes.len() && bytes[j + 1] == b'(' {
+                        let mut k = j + 2;
+                        while k < bytes.len() && bytes[k] != b')' {
+                            k += 1;
+                        }
+                        if k < bytes.len() {
+                            self.apply_tag("link", pos + i as i32, pos + k as i32 + 1, total_len);
+                            i = k + 1;
+                            continue;
+                        }
+                    }
+                }
+                if i + 1 < bytes.len() && bytes[i] == b'*' && bytes[i + 1] == b'*' {
+                    let mut j = i + 2;
+                    while j + 1 < bytes.len() && (bytes[j] != b'*' || bytes[j + 1] != b'*') {
+                        j += 1;
+                    }
+                    if j + 1 < bytes.len() {
+                        self.apply_tag("bold", pos + i as i32, pos + j as i32 + 2, total_len);
+                        i = j + 2;
+                        continue;
+                    }
+                }
+                if bytes[i] == b'*' && (i == 0 || bytes[i - 1] != b'*') {
+                    let mut j = i + 1;
+                    while j < bytes.len() && bytes[j] != b'*' && bytes[j] != b' ' {
+                        j += 1;
+                    }
+                    if j < bytes.len() && bytes[j] == b'*' {
+                        self.apply_tag("italic", pos + i as i32, pos + j as i32 + 1, total_len);
+                        i = j + 1;
+                        continue;
+                    }
+                }
+                i += 1;
+            }
+
+            let line_start = pos + (line.len() as i32 - trimmed.len() as i32);
+            if let Some(tag_idx) = trimmed.find('#') {
+                if tag_idx + 1 < trimmed.len() {
+                    let c = trimmed.chars().nth(tag_idx + 1).unwrap();
+                    if c.is_alphabetic() {
+                        self.apply_tag(
+                            "tag",
+                            line_start + tag_idx as i32,
+                            line_start + trimmed.len() as i32,
+                            total_len,
+                        );
+                    }
+                }
+            }
+
+            pos += line_len + 1;
+        }
     }
 
-    fn apply_regex(&self, tag_name: &str, regex: &Regex, text: &str) {
-        if let Some(tag) = self.tag_table.lookup(tag_name) {
-            for mat in regex.find_iter(text) {
-                let mut start = self.buffer.start_iter();
-                start.set_offset(mat.start() as i32);
-                let mut end = self.buffer.start_iter();
-                end.set_offset(mat.end() as i32);
-                self.buffer.apply_tag(&tag, &start, &end);
+    fn apply_tag(&self, tag_name: &str, start: i32, end: i32, total_len: i32) {
+        if start >= 0 && start < total_len && end > start && end <= total_len {
+            if let Some(tag) = self.tag_table.lookup(tag_name) {
+                let mut start_iter = self.buffer.start_iter();
+                start_iter.set_offset(start);
+                let mut end_iter = self.buffer.start_iter();
+                end_iter.set_offset(end);
+                self.buffer.apply_tag(&tag, &start_iter, &end_iter);
             }
         }
     }
@@ -148,10 +272,12 @@ impl Editor {
         let view = TextView::with_buffer(&buffer);
         view.set_hexpand(true);
         view.set_vexpand(true);
-        view.set_wrap_mode(WrapMode::Word);
+        view.set_wrap_mode(WrapMode::WordChar);
         view.set_monospace(true);
         view.set_accepts_tab(true);
         view.set_indent(2);
+        view.set_left_margin(8);
+        view.set_right_margin(8);
 
         Self {
             view,

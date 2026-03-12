@@ -6,7 +6,7 @@ use crate::ui::sidebar::Sidebar;
 use crate::ui::window::MainWindow;
 use gtk4::gio::ApplicationFlags;
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Button, HeaderBar};
+use gtk4::{Application, ApplicationWindow, Button, HeaderBar, ScrolledWindow};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -31,6 +31,17 @@ impl App {
             let editor = Editor::new();
             let preview = Preview::new();
             let current_note: Rc<RefCell<Option<Note>>> = Rc::new(RefCell::new(None));
+
+            let editor_scrolled = ScrolledWindow::new();
+            editor_scrolled.set_hexpand(true);
+            editor_scrolled.set_vexpand(true);
+            editor_scrolled.set_child(Some(&editor.view));
+
+            let preview_scrolled = ScrolledWindow::new();
+            preview_scrolled.set_hexpand(true);
+            preview_scrolled.set_vexpand(true);
+            preview_scrolled.set_child(Some(&preview.view));
+            preview_scrolled.set_visible(false);
 
             let sidebar_clone = sidebar.clone();
             let editor_clone = editor.clone();
@@ -99,20 +110,22 @@ impl App {
                 }
             });
 
-            let editor_for_toggle = editor.clone();
-            let preview_for_toggle = preview.clone();
+            let editor_scrolled_for_toggle = editor_scrolled.clone();
+            let preview_scrolled_for_toggle = preview_scrolled.clone();
             edit_button.connect_clicked(move |_| {
-                editor_for_toggle.view.set_visible(true);
-                preview_for_toggle.view.set_visible(false);
+                editor_scrolled_for_toggle.set_visible(true);
+                preview_scrolled_for_toggle.set_visible(false);
             });
 
             let editor_for_preview = editor.clone();
             let preview_for_preview = preview.clone();
+            let editor_scrolled_for_preview = editor_scrolled.clone();
+            let preview_scrolled_for_preview = preview_scrolled.clone();
             preview_button.connect_clicked(move |_| {
                 let markdown = editor_for_preview.get_content();
                 preview_for_preview.render(&markdown);
-                editor_for_preview.view.set_visible(false);
-                preview_for_preview.view.set_visible(true);
+                editor_scrolled_for_preview.set_visible(false);
+                preview_scrolled_for_preview.set_visible(true);
             });
 
             headerbar.pack_start(&open_button);
@@ -121,9 +134,8 @@ impl App {
             headerbar.pack_end(&save_button);
 
             main_window.sidebar.append(&sidebar.container);
-            main_window.content.append(&editor.view);
-            main_window.content.append(&preview.view);
-            preview.view.set_visible(false);
+            main_window.content.append(&editor_scrolled);
+            main_window.content.append(&preview_scrolled);
             window.set_child(Some(&main_window.paned));
 
             window.present();
