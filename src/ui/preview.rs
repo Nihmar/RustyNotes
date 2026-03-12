@@ -7,6 +7,15 @@ pub struct Preview {
     buffer: TextBuffer,
 }
 
+impl Clone for Preview {
+    fn clone(&self) -> Self {
+        Self {
+            view: self.view.clone(),
+            buffer: self.buffer.clone(),
+        }
+    }
+}
+
 impl Preview {
     pub fn new() -> Self {
         let buffer = TextBuffer::new(None);
