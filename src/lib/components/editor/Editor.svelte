@@ -5,16 +5,20 @@
     import type { EditorMode } from '$lib/types';
     import { createEditorExtensions } from '$lib/editor-engine/setup';
     import { renderMarkdown } from '$lib/editor-engine/reading-view';
-    import { livePreview } from '$lib/editor-engine/live-preview';
+    import { collapseOnSelectionFacet, setMouseSelecting } from 'codemirror-live-markdown';
+    import { darkExtensions } from '$lib/editor-engine/themes/dark';
+    import { lightExtensions } from '$lib/editor-engine/themes/light';
     import 'katex/dist/katex.min.css';
 
     let {
         content = '',
         mode = 'edit' as EditorMode,
+        theme = 'dark' as 'dark' | 'light',
         onchange
     }: {
         content?: string;
         mode?: EditorMode;
+        theme?: 'dark' | 'light';
         onchange?: (content: string) => void;
     } = $props();
 
@@ -24,17 +28,31 @@
     let isExternalUpdate = false;
 
     const livePreviewCompartment = new Compartment();
-    let activeEditorMode: EditorMode = $state(mode);
+    const themeCompartment = new Compartment();
+
+    function onMouseDown() {
+        if (view) view.dispatch({ effects: setMouseSelecting.of(true) });
+    }
+
+    function onMouseUp() {
+        requestAnimationFrame(() => {
+            if (view) view.dispatch({ effects: setMouseSelecting.of(false) });
+        });
+    }
 
     onMount(() => {
         if (!cmContainer) return;
+
         const initialState = EditorState.create({
             doc: content,
             extensions: [
                 ...createEditorExtensions(),
-                mode === 'live-preview'
-                    ? livePreviewCompartment.of(livePreview())
-                    : livePreviewCompartment.of([]),
+                livePreviewCompartment.of(
+                    collapseOnSelectionFacet.of(mode === 'live-preview')
+                ),
+                themeCompartment.of(
+                    theme === 'light' ? lightExtensions() : darkExtensions()
+                ),
                 EditorView.updateListener.of((v) => {
                     if (v.docChanged) {
                         if (isExternalUpdate) {
@@ -46,13 +64,19 @@
                 })
             ]
         });
+
         view = new EditorView({
             state: initialState,
             parent: cmContainer
         });
+
+        view.contentDOM.addEventListener('mousedown', onMouseDown);
+        document.addEventListener('mouseup', onMouseUp);
     });
 
     onDestroy(() => {
+        document.removeEventListener('mouseup', onMouseUp);
+        view?.contentDOM.removeEventListener('mousedown', onMouseDown);
         view?.destroy();
     });
 
@@ -76,6 +100,24 @@
         view?.focus();
     }
 
+    export function setMode(newMode: EditorMode) {
+        if (!view) return;
+        view.dispatch({
+            effects: livePreviewCompartment.reconfigure(
+                collapseOnSelectionFacet.of(newMode === 'live-preview')
+            )
+        });
+    }
+
+    export function setEditorTheme(t: 'dark' | 'light') {
+        if (!view) return;
+        view.dispatch({
+            effects: themeCompartment.reconfigure(
+                t === 'light' ? lightExtensions() : darkExtensions()
+            )
+        });
+    }
+
     // React to content prop changes from outside (tab switch)
     $effect(() => {
         if (!view) return;
@@ -91,26 +133,9 @@
             });
         }
     });
-
-    // Sync mode prop into local $state so $effect below reliably tracks it
-    $effect(() => {
-        activeEditorMode = mode;
-    });
-
-    // React to mode changes
-    $effect(() => {
-        const m = activeEditorMode;
-        if (!view) return;
-        console.log('[Editor] mode changed to:', m);
-        view.dispatch({
-            effects: livePreviewCompartment.reconfigure(
-                m === 'live-preview' ? livePreview() : []
-            )
-        });
-    });
 </script>
 
-<div class="editor-wrapper" class:lp-active={activeEditorMode === 'live-preview'}>
+<div class="editor-wrapper" class:lp-active={mode === 'live-preview'}>
     <div class="cm-container" class:cm-hidden={mode === 'reading'} bind:this={cmContainer}></div>
     <div class="reading-view" class:rv-visible={mode === 'reading'}>
         {@html renderedHtml}
@@ -201,7 +226,6 @@
     :global(.reading-view a.wikilink:hover) { text-decoration: underline; }
     :global(.reading-view hr) { border: none; border-top: 1px solid var(--border-color, #444); margin: 1em 0; }
 
-    /* Reading view checkbox styling */
     :global(.reading-view ul:has(input[type="checkbox"])) {
         list-style: none;
         padding-left: 1.5em;
@@ -222,52 +246,7 @@
     :global(.cm-wikilink-content) { color: var(--accent, #61afef); cursor: pointer; }
     :global(.cm-wikilink-content:hover) { text-decoration: underline; }
 
-    /* Live Preview styles */
-    :global(.cm-lp-bold) { font-weight: 700; }
-    :global(.cm-lp-italic) { font-style: italic; }
-    :global(.cm-lp-strikethrough) { text-decoration: line-through; }
-    :global(.cm-lp-code) {
-        background: var(--bg-secondary, #2a2a2a);
-        padding: 0 4px;
-        border-radius: 3px;
-        font-family: monospace;
-        font-size: 0.9em;
-    }
-    :global(.cm-lp-blockquote) {
-        border-left: 3px solid var(--accent, #61afef);
-        color: var(--text-muted, #888);
-        padding-left: 12px;
-    }
-    :global(.cm-lp-hr) {
-        border: none;
-        border-top: 1px solid var(--border-color, #444);
-        margin: 8px 0;
-    }
-    :global(.cm-lp-h1) { font-size: 1.8em; font-weight: 700; margin-top: 0.6em; }
-    :global(.cm-lp-h2) { font-size: 1.5em; font-weight: 700; margin-top: 0.5em; }
-    :global(.cm-lp-h3) { font-size: 1.3em; font-weight: 600; margin-top: 0.4em; }
-    :global(.cm-lp-h4) { font-size: 1.1em; font-weight: 600; }
-    :global(.cm-lp-h5) { font-size: 1em; font-weight: 600; color: var(--text-muted, #888); }
-    :global(.cm-lp-h6) { font-size: 0.9em; font-weight: 600; color: var(--text-muted, #888); }
-    :global(.cm-lp-bullet), :global(.cm-lp-checkbox), :global(.cm-lp-wikilink-pill) {
-        display: inline-block;
-        width: 1.2em;
-        text-align: center;
-    }
-    :global(.cm-lp-math-inline) {
-        display: inline;
-        font-style: normal;
-    }
-    :global(.cm-lp-math-block) {
-        display: block;
-        text-align: center;
-        margin: 8px 0;
-    }
-
-    /* Reading view math */
-    :global(.reading-view .math-inline) {
-        display: inline;
-    }
+    :global(.reading-view .math-inline) { display: inline; }
     :global(.reading-view .math-block) {
         display: block;
         text-align: center;

@@ -6,7 +6,7 @@
     import { getActiveNoteContent, getActiveNotePath, setActiveNote, setContent, isDirty, markClean } from '$lib/stores/notes.svelte';
     import { writeNote, readNote, createNote } from '$lib/commands';
     import { getActiveNotebook } from '$lib/stores/notebook.svelte';
-    import { getEditorMode } from '$lib/stores/ui.svelte';
+    import { getEditorMode, getTheme, toggleTheme } from '$lib/stores/ui.svelte';
 
     let editorRef: Editor | undefined = $state();
     let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -76,6 +76,18 @@
         });
     });
 
+    // Propagate mode changes directly to the editor ref
+    $effect(() => {
+        const currentMode = getEditorMode();
+        editorRef?.setMode(currentMode);
+    });
+
+    // Propagate theme changes to the editor ref
+    $effect(() => {
+        const currentTheme = getTheme();
+        editorRef?.setEditorTheme(currentTheme);
+    });
+
     async function handleCreateNote() {
         if (!getActiveNotebook()) return;
         const title = 'Untitled';
@@ -94,6 +106,9 @@
         <div class="toolbar">
             <TabBar />
             <ModeSwitcher />
+            <button class="theme-btn" onclick={toggleTheme} title="Toggle theme">
+                {getTheme() === 'dark' ? '☀' : '☾'}
+            </button>
             <span class="save-status">
                 {isDirty() ? 'Unsaved' : 'Saved'}
             </span>
@@ -102,6 +117,7 @@
             bind:this={editorRef}
             content={initialContent}
             mode={getEditorMode()}
+            theme={getTheme()}
             onchange={handleContentChange}
         />
     {:else}
@@ -136,6 +152,18 @@
         font-size: 11px;
         color: var(--text-muted, #888);
         margin-left: auto;
+    }
+    .theme-btn {
+        border: none;
+        background: transparent;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        line-height: 1;
+    }
+    .theme-btn:hover {
+        background: var(--bg-secondary, #2a2a2a);
     }
     .no-note {
         display: flex;

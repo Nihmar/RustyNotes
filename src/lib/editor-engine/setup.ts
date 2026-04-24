@@ -23,8 +23,15 @@ import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { lintKeymap } from '@codemirror/lint';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
+import { Table } from '@lezer/markdown';
 import type { Extension } from '@codemirror/state';
 import { wikilinks } from './wikilinks';
+import {
+    livePreviewPlugin,
+    markdownStylePlugin,
+    editorTheme,
+    mouseSelectingField
+} from 'codemirror-live-markdown';
 
 export function createEditorExtensions(): Extension[] {
     return [
@@ -43,9 +50,10 @@ export function createEditorExtensions(): Extension[] {
         rectangularSelection(),
         crosshairCursor(),
 
-        // Markdown with syntax highlighting
+        // Markdown with syntax highlighting and GFM table support
         markdown({
-            base: markdownLanguage
+            base: markdownLanguage,
+            extensions: [Table]
         }),
 
         // Wiki-links support
@@ -62,7 +70,13 @@ export function createEditorExtensions(): Extension[] {
         ]),
 
         // Basic syntax highlighting
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true })
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+
+        // Live preview support (always present, controlled by collapseOnSelectionFacet)
+        mouseSelectingField,
+        livePreviewPlugin,
+        markdownStylePlugin,
+        editorTheme
     ];
 }
 

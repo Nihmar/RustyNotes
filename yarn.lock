@@ -331,7 +331,7 @@
   dependencies:
     "@lezer/common" "^1.0.0"
 
-"@lezer/markdown@^1.0.0":
+"@lezer/markdown@^1.0.0", "@lezer/markdown@^1.6.3":
   version "1.6.3"
   resolved "https://registry.yarnpkg.com/@lezer/markdown/-/markdown-1.6.3.tgz#04beb444f656c2319ddf23554b1e4b0edf536071"
   integrity sha512-jpGm5Ps+XErS+xA4urw7ogEGkeZOahVQF21Z6oECF0sj+2liwZopd2+I8uH5I/vZsRuuze3OxBREIANLf6KKUw==
@@ -656,6 +656,11 @@ clsx@^2.1.1:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/clsx/-/clsx-2.1.1.tgz#eed397c9fd8bd882bfb18deab7102049a2f32999"
   integrity sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==
+
+codemirror-live-markdown@^0.5.1-alpha.1:
+  version "0.5.1-alpha.1"
+  resolved "https://registry.yarnpkg.com/codemirror-live-markdown/-/codemirror-live-markdown-0.5.1-alpha.1.tgz#61d5cc133c54f81586634d64ed7284750cf70b19"
+  integrity sha512-7PDefct3SnYWIJiBbEmJfOFAYntLQROfh385pwUAKFzR3NuPJUVAFlSAjw5rWluhEcLC9nmpZBfBpy814O5Dww==
 
 codemirror@^6.0.2:
   version "6.0.2"

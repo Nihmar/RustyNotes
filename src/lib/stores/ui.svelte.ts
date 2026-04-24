@@ -26,6 +26,10 @@ export function setTheme(t: 'dark' | 'light') {
     state.theme = t;
 }
 
+export function toggleTheme() {
+    state.theme = state.theme === 'dark' ? 'light' : 'dark';
+}
+
 export function cycleEditorMode() {
     const modes: EditorMode[] = ['edit', 'live-preview', 'reading'];
     const idx = modes.indexOf(state.editorMode);
