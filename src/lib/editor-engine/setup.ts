@@ -7,16 +7,22 @@ import {
     dropCursor,
     rectangularSelection,
     crosshairCursor,
-    highlightActiveLineGutter
+    highlightActiveLineGutter,
+    Decoration,
+    ViewPlugin,
+    EditorView,
+    ViewUpdate
 } from '@codemirror/view';
-import { EditorState } from '@codemirror/state';
+import type { DecorationSet } from '@codemirror/view';
+import { EditorState, RangeSetBuilder } from '@codemirror/state';
 import {
     defaultHighlightStyle,
     syntaxHighlighting,
     indentOnInput,
     bracketMatching,
     foldGutter,
-    foldKeymap
+    foldKeymap,
+    syntaxTree
 } from '@codemirror/language';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
@@ -31,7 +37,9 @@ import {
     markdownStylePlugin,
     editorTheme,
     mouseSelectingField,
-    collapseOnSelectionFacet
+    collapseOnSelectionFacet,
+    mathPlugin,
+    blockMathField
 } from 'codemirror-live-markdown';
 
 export function createEditorExtensions(): Extension[] {
@@ -73,12 +81,45 @@ export function createEditorExtensions(): Extension[] {
     ];
 }
 
+const visibleListMark = Decoration.mark({ class: 'cm-lp-list-visible' });
+
+const listMarkPlugin = ViewPlugin.fromClass(class {
+    decorations: DecorationSet;
+
+    constructor(view: EditorView) {
+        this.decorations = this.build(view);
+    }
+
+    update(update: ViewUpdate) {
+        if (update.docChanged || update.viewportChanged) {
+            this.decorations = this.build(update.view);
+        }
+    }
+
+    build(view: EditorView) {
+        const builder = new RangeSetBuilder<Decoration>();
+        syntaxTree(view.state).iterate({
+            enter: (node) => {
+                if (node.name === 'ListMark') {
+                    builder.add(node.from, node.to, visibleListMark);
+                }
+            }
+        });
+        return builder.finish();
+    }
+}, {
+    decorations: (v) => v.decorations
+});
+
 export function createLivePreviewExtensions(): Extension[] {
     return [
         collapseOnSelectionFacet.of(true),
         livePreviewPlugin,
         markdownStylePlugin,
-        editorTheme
+        editorTheme,
+        listMarkPlugin,
+        mathPlugin,
+        blockMathField
     ];
 }
 

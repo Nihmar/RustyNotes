@@ -1,8 +1,9 @@
 <script lang="ts">
-    import { searchNotes } from '$lib/commands';
+    import { searchNotes, readNote } from '$lib/commands';
     import { getQuery, getResults, isSearching, setQuery, setResults, setSearching } from '$lib/stores/search.svelte';
-    import { readNote } from '$lib/commands';
     import { setActiveNote, setContent, markClean } from '$lib/stores/notes.svelte';
+    import { openTab } from '$lib/stores/tabs.svelte';
+    import { getEditorMode } from '$lib/stores/ui.svelte';
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -26,12 +27,18 @@
         }, 300);
     }
 
-    async function handleClick(result: { path: string }) {
+    async function handleClick(result: { path: string; title: string }) {
         try {
             const content = await readNote(result.path);
             setActiveNote(result.path);
             setContent(content);
             markClean();
+            openTab({
+                path: result.path,
+                title: result.title,
+                isDirty: false,
+                mode: getEditorMode()
+            });
         } catch (e) {
             console.error('Failed to open search result:', e);
         }

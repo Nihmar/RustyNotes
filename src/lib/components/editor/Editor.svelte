@@ -24,7 +24,7 @@
 
     let cmContainer: HTMLDivElement | undefined = $state();
     let view: EditorView | undefined = $state();
-    let renderedHtml = $derived(renderMarkdown(content));
+    let renderedHtml = $derived(mode === 'reading' ? renderMarkdown(content) : '');
     let isExternalUpdate = false;
 
     const livePreviewExtensionsCompartment = new Compartment();
@@ -268,15 +268,10 @@
         cursor: default;
     }
 
-    .editor-wrapper.lp-active :global(.cm-formatting-block) {
+    .editor-wrapper.lp-active :global(.cm-lp-list-visible) {
         font-size: 1em !important;
-        opacity: 0.5 !important;
+        opacity: 1 !important;
         display: inline !important;
-    }
-
-    .editor-wrapper.lp-active :global(.cm-formatting-block-visible) {
-        font-size: 1em !important;
-        opacity: 0.8 !important;
     }
 
     :global(.cm-wikilink-bracket) { opacity: 0.5; }

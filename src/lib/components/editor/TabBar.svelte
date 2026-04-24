@@ -5,6 +5,12 @@
         e.stopPropagation();
         closeTab(index);
     }
+
+    function handleCloseAll() {
+        while (getTabs().length > 0) {
+            closeTab(getTabs().length - 1);
+        }
+    }
 </script>
 
 {#if getTabs().length > 0}
@@ -22,6 +28,11 @@
                 <span class="tab-close" onclick={(e) => handleClose(i, e)}>×</span>
             </button>
         {/each}
+        {#if getTabs().length > 1}
+            <button class="tab close-all" onclick={handleCloseAll} title="Close all tabs">
+                ✕
+            </button>
+        {/if}
     </div>
 {/if}
 
