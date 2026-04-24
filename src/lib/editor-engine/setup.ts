@@ -30,7 +30,8 @@ import {
     livePreviewPlugin,
     markdownStylePlugin,
     editorTheme,
-    mouseSelectingField
+    mouseSelectingField,
+    collapseOnSelectionFacet
 } from 'codemirror-live-markdown';
 
 export function createEditorExtensions(): Extension[] {
@@ -50,16 +51,13 @@ export function createEditorExtensions(): Extension[] {
         rectangularSelection(),
         crosshairCursor(),
 
-        // Markdown with syntax highlighting and GFM table support
         markdown({
             base: markdownLanguage,
             extensions: [Table]
         }),
 
-        // Wiki-links support
         wikilinks(),
 
-        // Keymaps
         keymap.of([
             ...closeBracketsKeymap,
             ...defaultKeymap,
@@ -69,11 +67,15 @@ export function createEditorExtensions(): Extension[] {
             ...lintKeymap
         ]),
 
-        // Basic syntax highlighting
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
 
-        // Live preview support (always present, controlled by collapseOnSelectionFacet)
-        mouseSelectingField,
+        mouseSelectingField
+    ];
+}
+
+export function createLivePreviewExtensions(): Extension[] {
+    return [
+        collapseOnSelectionFacet.of(true),
         livePreviewPlugin,
         markdownStylePlugin,
         editorTheme

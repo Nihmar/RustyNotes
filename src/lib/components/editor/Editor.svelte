@@ -3,9 +3,9 @@
     import { EditorView } from '@codemirror/view';
     import { EditorState, Compartment } from '@codemirror/state';
     import type { EditorMode } from '$lib/types';
-    import { createEditorExtensions } from '$lib/editor-engine/setup';
+    import { createEditorExtensions, createLivePreviewExtensions } from '$lib/editor-engine/setup';
     import { renderMarkdown } from '$lib/editor-engine/reading-view';
-    import { collapseOnSelectionFacet, setMouseSelecting } from 'codemirror-live-markdown';
+    import { setMouseSelecting } from 'codemirror-live-markdown';
     import { darkExtensions } from '$lib/editor-engine/themes/dark';
     import { lightExtensions } from '$lib/editor-engine/themes/light';
     import 'katex/dist/katex.min.css';
@@ -27,28 +27,34 @@
     let renderedHtml = $derived(renderMarkdown(content));
     let isExternalUpdate = false;
 
-    const livePreviewCompartment = new Compartment();
+    const livePreviewExtensionsCompartment = new Compartment();
     const themeCompartment = new Compartment();
 
     function onMouseDown() {
-        if (view) view.dispatch({ effects: setMouseSelecting.of(true) });
+        if (view && mode === 'live-preview') {
+            view.dispatch({ effects: setMouseSelecting.of(true) });
+        }
     }
 
     function onMouseUp() {
-        requestAnimationFrame(() => {
-            if (view) view.dispatch({ effects: setMouseSelecting.of(false) });
-        });
+        if (mode === 'live-preview') {
+            requestAnimationFrame(() => {
+                if (view) view.dispatch({ effects: setMouseSelecting.of(false) });
+            });
+        }
     }
 
     onMount(() => {
         if (!cmContainer) return;
 
+        const isLivePreview = mode === 'live-preview';
+
         const initialState = EditorState.create({
             doc: content,
             extensions: [
                 ...createEditorExtensions(),
-                livePreviewCompartment.of(
-                    collapseOnSelectionFacet.of(mode === 'live-preview')
+                livePreviewExtensionsCompartment.of(
+                    isLivePreview ? createLivePreviewExtensions() : []
                 ),
                 themeCompartment.of(
                     theme === 'light' ? lightExtensions() : darkExtensions()
@@ -103,8 +109,8 @@
     export function setMode(newMode: EditorMode) {
         if (!view) return;
         view.dispatch({
-            effects: livePreviewCompartment.reconfigure(
-                collapseOnSelectionFacet.of(newMode === 'live-preview')
+            effects: livePreviewExtensionsCompartment.reconfigure(
+                newMode === 'live-preview' ? createLivePreviewExtensions() : []
             )
         });
     }
@@ -240,6 +246,17 @@
         vertical-align: middle;
         accent-color: var(--accent, #61afef);
         cursor: default;
+    }
+
+    .editor-wrapper.lp-active :global(.cm-formatting-block) {
+        font-size: 1em !important;
+        opacity: 0.5 !important;
+        display: inline !important;
+    }
+
+    .editor-wrapper.lp-active :global(.cm-formatting-block-visible) {
+        font-size: 1em !important;
+        opacity: 0.8 !important;
     }
 
     :global(.cm-wikilink-bracket) { opacity: 0.5; }
