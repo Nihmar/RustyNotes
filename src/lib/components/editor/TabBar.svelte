@@ -1,0 +1,76 @@
+<script lang="ts">
+    import { tabs, activeTabIndex, openTab, closeTab, setActive } from '$lib/stores/tabs.svelte';
+
+    function handleClose(index: number, e: MouseEvent) {
+        e.stopPropagation();
+        closeTab(index);
+    }
+</script>
+
+{#if tabs.length > 0}
+    <div class="tab-bar">
+        {#each tabs as tab, i}
+            <button
+                class="tab"
+                class:active={i === activeTabIndex}
+                onclick={() => setActive(i)}
+            >
+                <span class="tab-title">{tab.title}</span>
+                {#if tab.isDirty}
+                    <span class="tab-dirty">●</span>
+                {/if}
+                <span class="tab-close" onclick={(e) => handleClose(i, e)}>×</span>
+            </button>
+        {/each}
+    </div>
+{/if}
+
+<style>
+    .tab-bar {
+        display: flex;
+        background: var(--bg-secondary, #252525);
+        border-bottom: 1px solid var(--border-color, #333);
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 12px;
+        font-size: 12px;
+        border: none;
+        border-right: 1px solid var(--border-color, #333);
+        background: none;
+        color: var(--text-muted, #888);
+        cursor: pointer;
+        white-space: nowrap;
+        min-width: 0;
+    }
+    .tab.active {
+        background: var(--bg-primary, #1e1e1e);
+        color: var(--text-primary, #d4d4d4);
+    }
+    .tab:hover {
+        background: var(--bg-primary, #1e1e1e);
+    }
+    .tab-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 120px;
+    }
+    .tab-dirty {
+        color: var(--accent, #61afef);
+        font-size: 8px;
+    }
+    .tab-close {
+        opacity: 0.5;
+        font-size: 14px;
+        padding: 0 2px;
+    }
+    .tab-close:hover {
+        opacity: 1;
+        color: #e06c75;
+    }
+</style>
