@@ -2,13 +2,12 @@
     import { onMount } from 'svelte';
     import { getActiveNotebook, getRecentNotebooks, isLoading, setActive, setRecent, setLoading } from '$lib/stores/notebook.svelte';
     import { listNotebooks, openNotebook, createNotebook } from '$lib/commands';
+    import { open as openDialog } from '@tauri-apps/plugin-dialog';
     import type { NotebookInfo } from '$lib/types';
 
     let showNewForm = $state(false);
     let newName = $state('');
     let newPath = $state('');
-    let showOpenForm = $state(false);
-    let openPath = $state('');
     let error = $state('');
 
     onMount(async () => {
@@ -37,14 +36,13 @@
     }
 
     async function handleOpenFolder() {
-        if (!openPath.trim()) return;
         try {
+            const selected = await openDialog({ directory: true, multiple: false });
+            if (!selected) return;
             setLoading(true);
             error = '';
-            const notebook = await openNotebook(openPath.trim());
+            const notebook = await openNotebook(selected);
             setActive(notebook);
-            showOpenForm = false;
-            openPath = '';
         } catch (e: any) {
             error = e;
         } finally {
@@ -68,6 +66,17 @@
             setLoading(false);
         }
     }
+
+    async function handlePickNewFolder() {
+        try {
+            const selected = await openDialog({ directory: true, multiple: false });
+            if (selected) {
+                newPath = selected;
+            }
+        } catch (e: any) {
+            error = e;
+        }
+    }
 </script>
 
 <div class="notebook-selector">
@@ -89,7 +98,7 @@
         <div class="recent-list">
             <p class="label">Recent</p>
             {#each getRecentNotebooks() as nb}
-                <button class="recent-item" onclick={() => handleOpenRecent(nb)}>
+                <button class="recent-item" onclick={() => handleOpenRecent(nb)} disabled={isLoading()}>
                     {nb.name}
                 </button>
             {/each}
@@ -97,25 +106,21 @@
     {/if}
 
     <div class="actions">
-        <button onclick={() => { showOpenForm = !showOpenForm; showNewForm = false; }}>
+        <button onclick={handleOpenFolder}>
             Open Folder
         </button>
-        <button onclick={() => { showNewForm = !showNewForm; showOpenForm = false; }}>
+        <button onclick={() => (showNewForm = !showNewForm)}>
             New Notebook
         </button>
     </div>
 
-    {#if showOpenForm}
-        <form class="form" onsubmit={(e) => { e.preventDefault(); handleOpenFolder(); }}>
-            <input type="text" placeholder="Notebook path..." bind:value={openPath} />
-            <button type="submit" disabled={isLoading()}>Open</button>
-        </form>
-    {/if}
-
     {#if showNewForm}
         <form class="form" onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>
             <input type="text" placeholder="Notebook name..." bind:value={newName} />
-            <input type="text" placeholder="Notebook path..." bind:value={newPath} />
+            <div class="path-row">
+                <input type="text" placeholder="Notebook path..." bind:value={newPath} />
+                <button type="button" class="browse-btn" onclick={handlePickNewFolder}>...</button>
+            </div>
             <button type="submit" disabled={isLoading()}>Create</button>
         </form>
     {/if}
@@ -169,8 +174,12 @@
         text-align: left;
         border-radius: 4px;
     }
-    .recent-item:hover {
+    .recent-item:hover:not(:disabled) {
         background: var(--hover-bg, #444);
+    }
+    .recent-item:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
     .actions {
         display: flex;
@@ -204,7 +213,26 @@
         color: inherit;
         border-radius: 4px;
     }
-    .form button {
+    .path-row {
+        display: flex;
+        gap: 4px;
+    }
+    .path-row input {
+        flex: 1;
+    }
+    .browse-btn {
+        padding: 4px 8px;
+        font-size: 12px;
+        border: 1px solid var(--border-color, #555);
+        background: var(--bg-secondary, #333);
+        color: inherit;
+        cursor: pointer;
+        border-radius: 4px;
+    }
+    .browse-btn:hover {
+        background: var(--hover-bg, #444);
+    }
+    .form > button {
         padding: 4px 8px;
         font-size: 12px;
         border: none;
@@ -213,7 +241,7 @@
         cursor: pointer;
         border-radius: 4px;
     }
-    .form button:disabled {
+    .form > button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
     }

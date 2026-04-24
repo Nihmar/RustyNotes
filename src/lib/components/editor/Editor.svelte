@@ -156,8 +156,28 @@
         position: relative;
     }
 
-    .editor-wrapper.lp-active :global(.cm-content) {
-        border-left: 3px solid #c678dd;
+    .editor-wrapper.lp-active {
+        --foreground: 220 9% 87%;
+        --muted-foreground: 220 9% 60%;
+        --md-heading: 220 9% 87%;
+        --md-bold: 220 9% 87%;
+        --md-italic: 220 9% 87%;
+        --background: 220 9% 10%;
+        --muted: 220 9% 15%;
+        --border: 220 9% 30%;
+        --primary: 220 90% 60%;
+    }
+
+    :global(.app.theme-light) .editor-wrapper.lp-active {
+        --foreground: 220 9% 9%;
+        --muted-foreground: 220 9% 46%;
+        --md-heading: 220 9% 9%;
+        --md-bold: 220 9% 9%;
+        --md-italic: 220 9% 9%;
+        --background: 0 0% 100%;
+        --muted: 220 14% 96%;
+        --border: 220 13% 91%;
+        --primary: 220 90% 56%;
     }
 
     .cm-container {
