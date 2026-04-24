@@ -2,7 +2,10 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use tauri::State;
 use walkdir::WalkDir;
+
+use crate::state::ManagedState;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SearchResult {
@@ -38,8 +41,16 @@ fn snippet_around(text: &str, pos: usize, query_len: usize) -> String {
     snippet
 }
 
+fn get_notebook_root(state: &ManagedState) -> Result<PathBuf, String> {
+    let app_state = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+    match app_state.active_notebook_path.as_ref() {
+        Some(root) => Ok(PathBuf::from(root)),
+        None => Err("No notebook is open. Please open or create a notebook first.".to_string()),
+    }
+}
+
 #[tauri::command]
-pub fn search_notes(query: String) -> Result<Vec<SearchResult>, String> {
+pub fn search_notes(query: String, state: State<'_, ManagedState>) -> Result<Vec<SearchResult>, String> {
     if query.trim().is_empty() {
         return Ok(Vec::new());
     }
@@ -48,9 +59,9 @@ pub fn search_notes(query: String) -> Result<Vec<SearchResult>, String> {
     let re = Regex::new(&pattern).map_err(|e| e.to_string())?;
 
     let mut results: Vec<SearchResult> = Vec::new();
-    let base = PathBuf::from(".");
+    let root = get_notebook_root(&state)?;
 
-    for entry in WalkDir::new(&base)
+    for entry in WalkDir::new(&root)
         .follow_links(false)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -60,9 +71,12 @@ pub fn search_notes(query: String) -> Result<Vec<SearchResult>, String> {
             if path.extension().map_or(false, |e| e == "md") {
                 if let Ok(content) = fs::read_to_string(path) {
                     let title = title_from_path(path);
-                    let path_str = path.to_string_lossy().to_string();
+                    let path_str = path
+                        .strip_prefix(&root)
+                        .unwrap_or(path)
+                        .to_string_lossy()
+                        .to_string();
 
-                    // Check title match for higher relevance
                     if re.is_match(&title) {
                         results.push(SearchResult {
                             path: path_str.clone(),
@@ -73,7 +87,6 @@ pub fn search_notes(query: String) -> Result<Vec<SearchResult>, String> {
                         });
                     }
 
-                    // Search body
                     for (line_num, line_text) in content.lines().enumerate() {
                         if let Some(mat) = re.find(line_text) {
                             let snippet = snippet_around(line_text, mat.start(), mat.len());

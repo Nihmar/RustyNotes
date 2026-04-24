@@ -174,6 +174,12 @@ pub fn list_notebooks() -> Result<Vec<NotebookInfo>, String> {
 }
 
 #[tauri::command]
+pub fn get_active_notebook_path(state: State<'_, ManagedState>) -> Result<Option<String>, String> {
+    let app_state = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+    Ok(app_state.active_notebook_path.clone())
+}
+
+#[tauri::command]
 pub fn close_notebook(state: State<'_, ManagedState>) -> Result<(), String> {
     if let Ok(mut app_state) = state.lock() {
         app_state.active_notebook_path = None;

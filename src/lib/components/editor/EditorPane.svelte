@@ -17,9 +17,10 @@
         // Autosave debounced
         if (saveTimer) clearTimeout(saveTimer);
         saveTimer = setTimeout(async () => {
-            if (!getActiveNotePath()) return;
+            const activePath = getActiveNotePath();
+            if (!activePath) return;
             try {
-                await writeNote(getActiveNotePath(), content);
+                await writeNote(activePath, content);
                 markClean();
             } catch (e) {
                 console.error('Autosave failed:', e);

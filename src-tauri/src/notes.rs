@@ -2,7 +2,27 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use tauri::State;
 use walkdir::WalkDir;
+
+use crate::state::ManagedState;
+
+fn get_notebook_root(state: &ManagedState) -> Result<PathBuf, String> {
+    let app_state = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+    match app_state.active_notebook_path.as_ref() {
+        Some(root) => Ok(PathBuf::from(root)),
+        None => Err("No notebook is open. Please open or create a notebook first.".to_string()),
+    }
+}
+
+fn resolve_path(state: &ManagedState, path: &str) -> Result<PathBuf, String> {
+    let p = Path::new(path);
+    if p.is_absolute() {
+        return Ok(p.to_path_buf());
+    }
+    let root = get_notebook_root(state)?;
+    Ok(root.join(path))
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NoteMeta {
@@ -31,7 +51,7 @@ fn extract_tags(content: &str) -> Vec<String> {
     tags
 }
 
-fn meta_from_path(path: &Path) -> Option<NoteMeta> {
+fn meta_from_path(path: &Path, root: &Path) -> Option<NoteMeta> {
     let metadata = path.metadata().ok()?;
     let modified = metadata
         .modified()
@@ -45,7 +65,11 @@ fn meta_from_path(path: &Path) -> Option<NoteMeta> {
         .unwrap_or_default();
 
     let title = title_from_path(&path);
-    let path_str = path.to_string_lossy().to_string();
+    let path_str = path
+        .strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .to_string();
     let tags = if let Ok(content) = fs::read_to_string(&path) {
         extract_tags(&content)
     } else {
@@ -62,12 +86,13 @@ fn meta_from_path(path: &Path) -> Option<NoteMeta> {
 }
 
 #[tauri::command]
-pub fn list_notes(dir: Option<String>) -> Result<Vec<NoteMeta>, String> {
-    let base = dir.unwrap_or_else(|| ".".to_string());
-    let base_path = PathBuf::from(&base);
+pub fn list_notes(dir: Option<String>, state: State<'_, ManagedState>) -> Result<Vec<NoteMeta>, String> {
+    let root = get_notebook_root(&state)?;
+    let subdir = dir.unwrap_or_else(|| ".".to_string());
+    let base_path = root.join(&subdir);
 
     if !base_path.exists() {
-        return Err(format!("Directory not found: {}", base));
+        return Err(format!("Directory not found: {}", base_path.display()));
     }
 
     let mut notes: Vec<NoteMeta> = Vec::new();
@@ -81,7 +106,7 @@ pub fn list_notes(dir: Option<String>) -> Result<Vec<NoteMeta>, String> {
             let path = entry.path();
             if let Some(ext) = path.extension() {
                 if ext == "md" {
-                    if let Some(meta) = meta_from_path(path) {
+                    if let Some(meta) = meta_from_path(path, &root) {
                         notes.push(meta);
                     }
                 }
@@ -94,25 +119,28 @@ pub fn list_notes(dir: Option<String>) -> Result<Vec<NoteMeta>, String> {
 }
 
 #[tauri::command]
-pub fn read_note(path: String) -> Result<String, String> {
-    fs::read_to_string(&path).map_err(|e| format!("Failed to read note: {}", e))
+pub fn read_note(path: String, state: State<'_, ManagedState>) -> Result<String, String> {
+    let resolved = resolve_path(&state, &path)?;
+    fs::read_to_string(&resolved)
+        .map_err(|e| format!("Failed to read note {}: {}", resolved.display(), e))
 }
 
 #[tauri::command]
-pub fn write_note(path: String, content: String) -> Result<(), String> {
-    let p = PathBuf::from(&path);
-    if let Some(parent) = p.parent() {
+pub fn write_note(path: String, content: String, state: State<'_, ManagedState>) -> Result<(), String> {
+    let resolved = resolve_path(&state, &path)?;
+    if let Some(parent) = resolved.parent() {
         fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
     }
-    let tmp = format!("{}.tmp", path);
+    let tmp = resolved.with_extension("md.tmp");
     fs::write(&tmp, &content).map_err(|e| format!("Failed to write note: {}", e))?;
-    fs::rename(&tmp, &path).map_err(|e| format!("Failed to save note: {}", e))?;
+    fs::rename(&tmp, &resolved).map_err(|e| format!("Failed to save note: {}", e))?;
     Ok(())
 }
 
 #[tauri::command]
-pub fn create_note(dir: String, title: String) -> Result<NoteMeta, String> {
-    let dir_path = PathBuf::from(&dir);
+pub fn create_note(dir: String, title: String, state: State<'_, ManagedState>) -> Result<NoteMeta, String> {
+    let root = get_notebook_root(&state)?;
+    let dir_path = resolve_path(&state, &dir)?;
     fs::create_dir_all(&dir_path).map_err(|e| format!("Failed to create directory: {}", e))?;
 
     let filename = format!("{}.md", title);
@@ -125,26 +153,26 @@ pub fn create_note(dir: String, title: String) -> Result<NoteMeta, String> {
     let content = format!("# {}\n\n", title);
     fs::write(&file_path, &content).map_err(|e| format!("Failed to create note: {}", e))?;
 
-    meta_from_path(&file_path).ok_or_else(|| "Failed to read created note metadata".to_string())
+    meta_from_path(&file_path, &root).ok_or_else(|| "Failed to read created note metadata".to_string())
 }
 
 #[tauri::command]
-pub fn delete_note(path: String) -> Result<(), String> {
-    let p = PathBuf::from(&path);
-    if !p.exists() {
-        return Err(format!("Note not found: {}", path));
+pub fn delete_note(path: String, state: State<'_, ManagedState>) -> Result<(), String> {
+    let resolved = resolve_path(&state, &path)?;
+    if !resolved.exists() {
+        return Err(format!("Note not found: {}", resolved.display()));
     }
-    fs::remove_file(&p).map_err(|e| format!("Failed to delete note: {}", e))
+    fs::remove_file(&resolved).map_err(|e| format!("Failed to delete note: {}", e))
 }
 
 #[tauri::command]
-pub fn rename_note(path: String, new_name: String) -> Result<(), String> {
-    let p = PathBuf::from(&path);
-    if !p.exists() {
-        return Err(format!("Note not found: {}", path));
+pub fn rename_note(path: String, new_name: String, state: State<'_, ManagedState>) -> Result<(), String> {
+    let resolved = resolve_path(&state, &path)?;
+    if !resolved.exists() {
+        return Err(format!("Note not found: {}", resolved.display()));
     }
 
-    let parent = p
+    let parent = resolved
         .parent()
         .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
@@ -155,16 +183,16 @@ pub fn rename_note(path: String, new_name: String) -> Result<(), String> {
         return Err(format!("A note named '{}' already exists", new_name));
     }
 
-    fs::rename(&p, &new_path).map_err(|e| format!("Failed to rename note: {}", e))
+    fs::rename(&resolved, &new_path).map_err(|e| format!("Failed to rename note: {}", e))
 }
 
 #[tauri::command]
-pub fn move_note(from: String, to: String) -> Result<(), String> {
-    let from_path = PathBuf::from(&from);
-    let to_path = PathBuf::from(&to);
+pub fn move_note(from: String, to: String, state: State<'_, ManagedState>) -> Result<(), String> {
+    let from_path = resolve_path(&state, &from)?;
+    let to_path = resolve_path(&state, &to)?;
 
     if !from_path.exists() {
-        return Err(format!("Source note not found: {}", from));
+        return Err(format!("Source note not found: {}", from_path.display()));
     }
 
     if let Some(parent) = to_path.parent() {

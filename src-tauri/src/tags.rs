@@ -3,7 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use tauri::State;
 use walkdir::WalkDir;
+
+use crate::state::ManagedState;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TagInfo {
@@ -11,16 +14,24 @@ pub struct TagInfo {
     pub count: u32,
 }
 
+fn get_notebook_root(state: &ManagedState) -> Result<PathBuf, String> {
+    let app_state = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
+    match app_state.active_notebook_path.as_ref() {
+        Some(root) => Ok(PathBuf::from(root)),
+        None => Err("No notebook is open. Please open or create a notebook first.".to_string()),
+    }
+}
+
 #[tauri::command]
-pub fn get_tags() -> Result<Vec<TagInfo>, String> {
+pub fn get_tags(state: State<'_, ManagedState>) -> Result<Vec<TagInfo>, String> {
     let tag_re = Regex::new(r"#([\w/-]+)").map_err(|e| e.to_string())?;
     let code_block_re = Regex::new(r"```[\s\S]*?```").unwrap();
     let inline_code_re = Regex::new(r"`[^`]+`").unwrap();
 
     let mut tag_counts: HashMap<String, u32> = HashMap::new();
-    let base = PathBuf::from(".");
+    let root = get_notebook_root(&state)?;
 
-    for entry in WalkDir::new(&base)
+    for entry in WalkDir::new(&root)
         .follow_links(false)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -29,7 +40,6 @@ pub fn get_tags() -> Result<Vec<TagInfo>, String> {
             let path = entry.path();
             if path.extension().map_or(false, |e| e == "md") {
                 if let Ok(mut content) = fs::read_to_string(path) {
-                    // Remove code blocks
                     content = code_block_re.replace_all(&content, "").to_string();
                     content = inline_code_re.replace_all(&content, "").to_string();
 

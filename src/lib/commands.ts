@@ -15,6 +15,10 @@ export async function listNotebooks(): Promise<NotebookInfo[]> {
     return invoke('list_notebooks');
 }
 
+export async function getActiveNotebookPath(): Promise<string | null> {
+    return invoke('get_active_notebook_path');
+}
+
 export async function closeNotebook(): Promise<void> {
     return invoke('close_notebook');
 }

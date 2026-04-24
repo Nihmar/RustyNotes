@@ -74,9 +74,10 @@
     <h3>Notebook</h3>
 
     {#if getActiveNotebook()}
+        {@const nb = getActiveNotebook()!}
         <div class="active-notebook">
             <span class="nb-icon">📓</span>
-            <span class="nb-name">{getActiveNotebook().name}</span>
+            <span class="nb-name">{nb.name}</span>
         </div>
     {/if}
 

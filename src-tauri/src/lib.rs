@@ -23,6 +23,7 @@ pub fn run() {
             notebook::open_notebook,
             notebook::list_notebooks,
             notebook::close_notebook,
+            notebook::get_active_notebook_path,
             notes::list_notes,
             notes::read_note,
             notes::write_note,
