@@ -77,6 +77,8 @@ function decorateLivePreview(view: EditorView): DecorationSet {
     const cursorLine = view.state.selection.main.head;
     const cursorLineNum = doc.lineAt(cursorLine).number;
 
+    console.log('[live-preview] decorateLivePreview called, lines:', doc.lines, 'cursor at:', cursorLineNum);
+
     // First pass: find display math blocks ($$...$$)
     const mathBlockLines = new Set<number>();
     const displayMathBlocks: { startLine: number; endLine: number; latex: string; from: number; to: number }[] = [];

@@ -24,7 +24,7 @@
     let isExternalUpdate = false;
 
     const livePreviewCompartment = new Compartment();
-    const currentMode = $derived(mode);
+    let activeEditorMode: EditorMode = $state(mode);
 
     onMount(() => {
         if (!cmContainer) return;
@@ -92,19 +92,25 @@
         }
     });
 
-    // React to mode prop changes
+    // Sync mode prop into local $state so $effect below reliably tracks it
     $effect(() => {
-        if (!view || !currentMode) return;
-        const isLivePreview = currentMode === 'live-preview';
+        activeEditorMode = mode;
+    });
+
+    // React to mode changes
+    $effect(() => {
+        const m = activeEditorMode;
+        if (!view) return;
+        console.log('[Editor] mode changed to:', m);
         view.dispatch({
             effects: livePreviewCompartment.reconfigure(
-                isLivePreview ? livePreview() : []
+                m === 'live-preview' ? livePreview() : []
             )
         });
     });
 </script>
 
-<div class="editor-wrapper">
+<div class="editor-wrapper" class:lp-active={activeEditorMode === 'live-preview'}>
     <div class="cm-container" class:cm-hidden={mode === 'reading'} bind:this={cmContainer}></div>
     <div class="reading-view" class:rv-visible={mode === 'reading'}>
         {@html renderedHtml}
@@ -117,6 +123,10 @@
         height: 100%;
         overflow: auto;
         position: relative;
+    }
+
+    .editor-wrapper.lp-active :global(.cm-content) {
+        border-left: 3px solid #c678dd;
     }
 
     .cm-container {

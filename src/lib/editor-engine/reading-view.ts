@@ -82,7 +82,7 @@ function latexInlineExtension() {
             return src.indexOf('$');
         },
         tokenizer(src: string) {
-            const match = src.match(/^\$([^$\n]+?)\$/);
+            const match = src.match(/^\$(?!\$)([^$\n]+?)\$(?!\$)/);
             if (match) {
                 return {
                     type: 'latexInline',
@@ -101,7 +101,12 @@ function latexInlineExtension() {
     };
 }
 
-marked.use({ extensions: [wikilinkExtension(), latexBlockExtension(), latexInlineExtension()] });
+const EXTENSIONS_REGISTERED = Symbol.for('rustynotes.marked.extensions');
+
+if (!(globalThis as Record<string, unknown>)[EXTENSIONS_REGISTERED as unknown as string]) {
+    marked.use({ extensions: [wikilinkExtension(), latexBlockExtension(), latexInlineExtension()] });
+    (globalThis as Record<string, unknown>)[EXTENSIONS_REGISTERED as unknown as string] = true;
+}
 
 export function renderMarkdown(content: string): string {
     return marked.parse(content, { async: false }) as string;
