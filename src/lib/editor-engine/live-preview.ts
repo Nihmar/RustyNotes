@@ -76,6 +76,26 @@ function decorateLivePreview(view: EditorView): DecorationSet {
             builder.add(lineFrom, line.to, blockquoteMark);
         }
 
+        // Checkbox / task list (must check before unordered list)
+        const checkMatch = lineText.match(/^(\s*)[-*+]\s+\[([ xX])\]\s+(.*)/);
+        if (checkMatch && !bqMatch) {
+            const indent = checkMatch[1].length;
+            const checked = checkMatch[2].toLowerCase() === 'x';
+            const markerEnd = lineFrom + indent + 1; // after -, *, or +
+            const bracketEnd = markerEnd + 4; // after " [ ]" or " [x]"
+            builder.add(lineFrom, bracketEnd, hiddenSyntax);
+
+            const span = document.createElement('span');
+            span.className = 'cm-lp-checkbox';
+            span.textContent = checked ? '☑' : '☐';
+            builder.add(
+                markerEnd,
+                bracketEnd - 1,
+                Decoration.widget({ widget: new SpanWidget(span), side: 1 })
+            );
+            continue;
+        }
+
         // Unordered list items
         const ulMatch = lineText.match(/^(\s*)([-*+])\s+(.+)/);
         if (ulMatch && !bqMatch) {
@@ -98,26 +118,6 @@ function decorateLivePreview(view: EditorView): DecorationSet {
         if (olMatch && !bqMatch) {
             const indent = olMatch[1].length;
             builder.add(lineFrom, lineFrom + indent + olMatch[2].length + 1, hiddenSyntax);
-            continue;
-        }
-
-        // Checkbox / task list
-        const checkMatch = lineText.match(/^(\s*)[-*+]\s+\[([ xX])\]\s+(.+)/);
-        if (checkMatch) {
-            const indent = checkMatch[1].length;
-            const checked = checkMatch[2].toLowerCase() === 'x';
-            builder.add(lineFrom, lineFrom + indent, hiddenSyntax);
-            const endOfMarker = lineFrom + indent + 1; // after -
-            builder.add(endOfMarker, endOfMarker + 4, hiddenSyntax);
-
-            const span = document.createElement('span');
-            span.className = 'cm-lp-checkbox';
-            span.textContent = checked ? '☑' : '☐';
-            builder.add(
-                lineFrom + indent + 1,
-                lineFrom + indent + 4,
-                Decoration.widget({ widget: new SpanWidget(span), side: 1 })
-            );
             continue;
         }
 

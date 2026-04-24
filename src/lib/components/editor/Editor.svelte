@@ -9,14 +9,15 @@
 
     let { content = '', onchange }: { content?: string; onchange?: (content: string) => void } = $props();
 
-    let editorContainer: HTMLDivElement | undefined = $state();
+    let cmContainer: HTMLDivElement | undefined = $state();
     let view: EditorView | undefined = $state();
+    let currentMode = $derived(getEditorMode());
     let renderedHtml = $derived(renderMarkdown(content));
 
     const livePreviewCompartment = new Compartment();
 
     onMount(() => {
-        if (!editorContainer) return;
+        if (!cmContainer) return;
         const state = EditorState.create({
             doc: content,
             extensions: [
@@ -31,7 +32,7 @@
         });
         view = new EditorView({
             state,
-            parent: editorContainer
+            parent: cmContainer
         });
     });
 
@@ -61,38 +62,26 @@
 
     $effect(() => {
         if (!view) return;
-        const wrapper = editorContainer;
-        if (!wrapper) return;
 
-        const cmEl = wrapper.querySelector('.cm-editor') as HTMLElement | null;
-        const readingEl = wrapper.querySelector('.reading-view') as HTMLElement | null;
-
-        if (getEditorMode() === 'reading') {
-            if (cmEl) cmEl.style.display = 'none';
-            if (readingEl) readingEl.style.display = 'block';
-            // Remove live preview if active
+        if (currentMode === 'reading') {
             view.dispatch({
                 effects: livePreviewCompartment.reconfigure([])
             });
+        } else if (currentMode === 'live-preview') {
+            view.dispatch({
+                effects: livePreviewCompartment.reconfigure(livePreview())
+            });
         } else {
-            if (cmEl) cmEl.style.display = '';
-            if (readingEl) readingEl.style.display = 'none';
-
-            if (getEditorMode() === 'live-preview') {
-                view.dispatch({
-                    effects: livePreviewCompartment.reconfigure(livePreview())
-                });
-            } else {
-                view.dispatch({
-                    effects: livePreviewCompartment.reconfigure([])
-                });
-            }
+            view.dispatch({
+                effects: livePreviewCompartment.reconfigure([])
+            });
         }
     });
 </script>
 
-<div class="editor-wrapper" bind:this={editorContainer}>
-    <div class="reading-view">
+<div class="editor-wrapper">
+    <div class="cm-container" class:cm-hidden={currentMode === 'reading'} bind:this={cmContainer}></div>
+    <div class="reading-view" class:rv-visible={currentMode === 'reading'}>
         {@html renderedHtml}
     </div>
 </div>
@@ -105,18 +94,26 @@
         position: relative;
     }
 
-    :global(.editor-wrapper .cm-editor) {
+    .cm-container {
         height: 100%;
     }
 
-    :global(.editor-wrapper .cm-scroller) {
+    .cm-container.cm-hidden {
+        display: none;
+    }
+
+    :global(.cm-container .cm-editor) {
+        height: 100%;
+    }
+
+    :global(.cm-container .cm-scroller) {
         overflow: auto;
         font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
         font-size: 14px;
         line-height: 1.6;
     }
 
-    :global(.editor-wrapper .cm-content) {
+    :global(.cm-container .cm-content) {
         padding: 16px 0;
         max-width: 800px;
         margin: 0 auto;
@@ -131,6 +128,10 @@
         font-size: 15px;
         line-height: 1.7;
         display: none;
+    }
+
+    .reading-view.rv-visible {
+        display: block;
     }
 
     :global(.reading-view h1) { font-size: 2em; margin: 0.5em 0; }
@@ -164,6 +165,16 @@
     :global(.reading-view a.wikilink) { color: var(--accent, #61afef); text-decoration: none; }
     :global(.reading-view a.wikilink:hover) { text-decoration: underline; }
     :global(.reading-view hr) { border: none; border-top: 1px solid var(--border-color, #444); margin: 1em 0; }
+
+    /* Reading view checkbox styling */
+    :global(.reading-view input[type="checkbox"]) {
+        width: 1em;
+        height: 1em;
+        margin: 0 0.4em 0 0;
+        vertical-align: middle;
+        accent-color: var(--accent, #61afef);
+        cursor: default;
+    }
 
     :global(.cm-wikilink-bracket) { opacity: 0.5; }
     :global(.cm-wikilink-content) { color: var(--accent, #61afef); cursor: pointer; }
