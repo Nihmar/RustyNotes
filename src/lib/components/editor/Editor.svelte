@@ -2,36 +2,52 @@
     import { onMount, onDestroy } from 'svelte';
     import { EditorView } from '@codemirror/view';
     import { EditorState, Compartment } from '@codemirror/state';
+    import type { EditorMode } from '$lib/types';
     import { createEditorExtensions } from '$lib/editor-engine/setup';
     import { renderMarkdown } from '$lib/editor-engine/reading-view';
     import { livePreview } from '$lib/editor-engine/live-preview';
-    import { getEditorMode } from '$lib/stores/ui.svelte';
+    import 'katex/dist/katex.min.css';
 
-    let { content = '', onchange }: { content?: string; onchange?: (content: string) => void } = $props();
+    let {
+        content = '',
+        mode = 'edit' as EditorMode,
+        onchange
+    }: {
+        content?: string;
+        mode?: EditorMode;
+        onchange?: (content: string) => void;
+    } = $props();
 
     let cmContainer: HTMLDivElement | undefined = $state();
     let view: EditorView | undefined = $state();
-    let currentMode = $derived(getEditorMode());
     let renderedHtml = $derived(renderMarkdown(content));
+    let isExternalUpdate = false;
 
     const livePreviewCompartment = new Compartment();
+    const currentMode = $derived(mode);
 
     onMount(() => {
         if (!cmContainer) return;
-        const state = EditorState.create({
+        const initialState = EditorState.create({
             doc: content,
             extensions: [
                 ...createEditorExtensions(),
-                livePreviewCompartment.of([]),
+                mode === 'live-preview'
+                    ? livePreviewCompartment.of(livePreview())
+                    : livePreviewCompartment.of([]),
                 EditorView.updateListener.of((v) => {
                     if (v.docChanged) {
+                        if (isExternalUpdate) {
+                            isExternalUpdate = false;
+                            return;
+                        }
                         onchange?.(v.state.doc.toString());
                     }
                 })
             ]
         });
         view = new EditorView({
-            state,
+            state: initialState,
             parent: cmContainer
         });
     });
@@ -60,28 +76,37 @@
         view?.focus();
     }
 
+    // React to content prop changes from outside (tab switch)
     $effect(() => {
         if (!view) return;
-
-        if (currentMode === 'reading') {
+        const currentDoc = view.state.doc.toString();
+        if (content !== currentDoc) {
+            isExternalUpdate = true;
             view.dispatch({
-                effects: livePreviewCompartment.reconfigure([])
-            });
-        } else if (currentMode === 'live-preview') {
-            view.dispatch({
-                effects: livePreviewCompartment.reconfigure(livePreview())
-            });
-        } else {
-            view.dispatch({
-                effects: livePreviewCompartment.reconfigure([])
+                changes: {
+                    from: 0,
+                    to: view.state.doc.length,
+                    insert: content
+                }
             });
         }
+    });
+
+    // React to mode prop changes
+    $effect(() => {
+        if (!view || !currentMode) return;
+        const isLivePreview = currentMode === 'live-preview';
+        view.dispatch({
+            effects: livePreviewCompartment.reconfigure(
+                isLivePreview ? livePreview() : []
+            )
+        });
     });
 </script>
 
 <div class="editor-wrapper">
-    <div class="cm-container" class:cm-hidden={currentMode === 'reading'} bind:this={cmContainer}></div>
-    <div class="reading-view" class:rv-visible={currentMode === 'reading'}>
+    <div class="cm-container" class:cm-hidden={mode === 'reading'} bind:this={cmContainer}></div>
+    <div class="reading-view" class:rv-visible={mode === 'reading'}>
         {@html renderedHtml}
     </div>
 </div>
@@ -167,6 +192,13 @@
     :global(.reading-view hr) { border: none; border-top: 1px solid var(--border-color, #444); margin: 1em 0; }
 
     /* Reading view checkbox styling */
+    :global(.reading-view ul:has(input[type="checkbox"])) {
+        list-style: none;
+        padding-left: 1.5em;
+    }
+    :global(.reading-view li:has(input[type="checkbox"])) {
+        list-style: none;
+    }
     :global(.reading-view input[type="checkbox"]) {
         width: 1em;
         height: 1em;
@@ -211,5 +243,33 @@
         display: inline-block;
         width: 1.2em;
         text-align: center;
+    }
+    :global(.cm-lp-math-inline) {
+        display: inline;
+        font-style: normal;
+    }
+    :global(.cm-lp-math-block) {
+        display: block;
+        text-align: center;
+        margin: 8px 0;
+    }
+
+    /* Reading view math */
+    :global(.reading-view .math-inline) {
+        display: inline;
+    }
+    :global(.reading-view .math-block) {
+        display: block;
+        text-align: center;
+        margin: 12px 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    :global(.reading-view .math-error) {
+        color: #e06c75;
+        font-family: monospace;
+        background: rgba(224, 108, 117, 0.1);
+        padding: 2px 6px;
+        border-radius: 3px;
     }
 </style>

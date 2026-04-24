@@ -1,10 +1,23 @@
-import { marked, Renderer } from 'marked';
+import { marked } from 'marked';
+import katex from 'katex';
 
 interface WikilinkToken {
     type: 'wikilink';
     raw: string;
     text: string;
     target: string;
+}
+
+interface LatexBlockToken {
+    type: 'latexBlock';
+    raw: string;
+    text: string;
+}
+
+interface LatexInlineToken {
+    type: 'latexInline';
+    raw: string;
+    text: string;
 }
 
 function wikilinkExtension() {
@@ -34,7 +47,61 @@ function wikilinkExtension() {
     };
 }
 
-marked.use({ extensions: [wikilinkExtension()] });
+function latexBlockExtension() {
+    return {
+        name: 'latexBlock',
+        level: 'block' as const,
+        start(src: string) {
+            return src.indexOf('$$');
+        },
+        tokenizer(src: string) {
+            const match = src.match(/^\$\$\n?([\s\S]*?)\n?\$\$/);
+            if (match) {
+                return {
+                    type: 'latexBlock',
+                    raw: match[0],
+                    text: match[1].trim()
+                };
+            }
+        },
+        renderer(token: LatexBlockToken) {
+            try {
+                return `<div class="math-block">${katex.renderToString(token.text, { displayMode: true, throwOnError: false })}</div>`;
+            } catch {
+                return `<div class="math-block math-error">${token.raw}</div>`;
+            }
+        }
+    };
+}
+
+function latexInlineExtension() {
+    return {
+        name: 'latexInline',
+        level: 'inline' as const,
+        start(src: string) {
+            return src.indexOf('$');
+        },
+        tokenizer(src: string) {
+            const match = src.match(/^\$([^$\n]+?)\$/);
+            if (match) {
+                return {
+                    type: 'latexInline',
+                    raw: match[0],
+                    text: match[1].trim()
+                };
+            }
+        },
+        renderer(token: LatexInlineToken) {
+            try {
+                return `<span class="math-inline">${katex.renderToString(token.text, { displayMode: false, throwOnError: false })}</span>`;
+            } catch {
+                return `<span class="math-inline math-error">${token.raw}</span>`;
+            }
+        }
+    };
+}
+
+marked.use({ extensions: [wikilinkExtension(), latexBlockExtension(), latexInlineExtension()] });
 
 export function renderMarkdown(content: string): string {
     return marked.parse(content, { async: false }) as string;
