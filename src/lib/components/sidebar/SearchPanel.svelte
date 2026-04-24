@@ -1,6 +1,6 @@
 <script lang="ts">
     import { searchNotes } from '$lib/commands';
-    import { query, results, searching, setQuery, setResults, setSearching } from '$lib/stores/search.svelte';
+    import { getQuery, getResults, isSearching, setQuery, setResults, setSearching } from '$lib/stores/search.svelte';
     import { readNote } from '$lib/commands';
     import { setActiveNote, setContent, markClean } from '$lib/stores/notes.svelte';
 
@@ -43,24 +43,24 @@
         type="text"
         class="search-input"
         placeholder="Search notes..."
-        value={query}
+        value={getQuery()}
         oninput={(e) => onInput(e.currentTarget.value)}
     />
 
-    {#if searching}
+    {#if isSearching()}
         <p class="status">Searching...</p>
     {/if}
 
-    {#if results.length > 0}
+    {#if getResults().length > 0}
         <div class="results">
-            {#each results as result}
+            {#each getResults() as result}
                 <button class="result-item" onclick={() => handleClick(result)}>
                     <span class="result-title">{result.title}</span>
                     <span class="result-snippet">{@html result.snippet}</span>
                 </button>
             {/each}
         </div>
-    {:else if query && !searching}
+    {:else if getQuery() && !isSearching()}
         <p class="status">No results</p>
     {/if}
 </div>

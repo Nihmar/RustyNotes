@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { editorMode, setEditorMode, cycleEditorMode } from '$lib/stores/ui.svelte';
+    import { getEditorMode, setEditorMode } from '$lib/stores/ui.svelte';
     import type { EditorMode } from '$lib/types';
 
     const modes: { value: EditorMode; label: string }[] = [
@@ -13,7 +13,7 @@
     {#each modes as mode}
         <button
             class="mode-btn"
-            class:active={editorMode === mode.value}
+            class:active={getEditorMode() === mode.value}
             onclick={() => setEditorMode(mode.value)}
         >
             {mode.label}

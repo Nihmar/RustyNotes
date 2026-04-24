@@ -2,8 +2,8 @@
     import Editor from './Editor.svelte';
     import ModeSwitcher from './ModeSwitcher.svelte';
     import TabBar from './TabBar.svelte';
-    import { tabs, activeTabIndex, activeTab, openTab, setDirty } from '$lib/stores/tabs.svelte';
-    import { activeNoteContent, activeNotePath, setContent, isDirty, markClean } from '$lib/stores/notes.svelte';
+    import { getActiveTab, openTab } from '$lib/stores/tabs.svelte';
+    import { getActiveNoteContent, getActiveNotePath, setContent, isDirty, markClean } from '$lib/stores/notes.svelte';
     import { writeNote } from '$lib/commands';
 
     let editorRef: Editor | undefined = $state();
@@ -17,9 +17,9 @@
         // Autosave debounced
         if (saveTimer) clearTimeout(saveTimer);
         saveTimer = setTimeout(async () => {
-            if (!activeNotePath) return;
+            if (!getActiveNotePath()) return;
             try {
-                await writeNote(activeNotePath, content);
+                await writeNote(getActiveNotePath(), content);
                 markClean();
             } catch (e) {
                 console.error('Autosave failed:', e);
@@ -28,12 +28,14 @@
     }
 
     $effect(() => {
-        if (activeNotePath && activeNoteContent !== undefined) {
-            const title = activeNotePath.split(/[/\\]/).pop()?.replace('.md', '') ?? 'Untitled';
+        const path = getActiveNotePath();
+        const content = getActiveNoteContent();
+        if (path && content !== undefined && content !== null) {
+            const title = path.split(/[/\\]/).pop()?.replace('.md', '') ?? 'Untitled';
             openTab({
-                path: activeNotePath,
+                path,
                 title,
-                isDirty,
+                isDirty: isDirty(),
                 mode: 'edit'
             });
         }
@@ -41,17 +43,17 @@
 </script>
 
 <div class="editor-pane">
-    {#if activeTab}
+    {#if getActiveTab()}
         <div class="toolbar">
             <TabBar />
             <ModeSwitcher />
             <span class="save-status">
-                {isDirty ? 'Unsaved' : 'Saved'}
+                {isDirty() ? 'Unsaved' : 'Saved'}
             </span>
         </div>
         <Editor
             bind:this={editorRef}
-            content={activeNoteContent}
+            content={getActiveNoteContent()}
         />
     {:else}
         <div class="no-note">

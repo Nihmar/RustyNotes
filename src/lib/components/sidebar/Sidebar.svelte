@@ -3,19 +3,19 @@
     import FileTree from './FileTree.svelte';
     import SearchPanel from './SearchPanel.svelte';
     import TagBrowser from './TagBrowser.svelte';
-    import { sidebarVisible, toggleSidebar } from '$lib/stores/ui.svelte';
-    import { activeNotebook } from '$lib/stores/notebook.svelte';
+    import { getSidebarVisible, toggleSidebar } from '$lib/stores/ui.svelte';
+    import { getActiveNotebook } from '$lib/stores/notebook.svelte';
 
     let activePanel = $state<'files' | 'search' | 'tags'>('files');
 </script>
 
-{#if activeNotebook}
+{#if getActiveNotebook()}
     <button class="hamburger" onclick={toggleSidebar} aria-label="Toggle sidebar">
         ☰
     </button>
 {/if}
 
-<div class="sidebar" class:collapsed={!sidebarVisible}>
+<div class="sidebar" class:collapsed={!getSidebarVisible()}>
     <NotebookSelector />
     <div class="panel-tabs">
         <button class="panel-tab" class:active={activePanel === 'files'} onclick={() => (activePanel = 'files')}>Files</button>

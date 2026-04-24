@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { tabs, activeTabIndex, openTab, closeTab, setActive } from '$lib/stores/tabs.svelte';
+    import { getTabs, getActiveTabIndex, openTab, closeTab, setActive } from '$lib/stores/tabs.svelte';
 
     function handleClose(index: number, e: MouseEvent) {
         e.stopPropagation();
@@ -7,12 +7,12 @@
     }
 </script>
 
-{#if tabs.length > 0}
+{#if getTabs().length > 0}
     <div class="tab-bar">
-        {#each tabs as tab, i}
+        {#each getTabs() as tab, i}
             <button
                 class="tab"
-                class:active={i === activeTabIndex}
+                class:active={i === getActiveTabIndex()}
                 onclick={() => setActive(i)}
             >
                 <span class="tab-title">{tab.title}</span>

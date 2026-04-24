@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { activeNotebook, loading, setActive, setLoading } from '$lib/stores/notebook.svelte';
+    import { getActiveNotebook, isLoading, setActive, setLoading } from '$lib/stores/notebook.svelte';
     import { createNotebook, openNotebook } from '$lib/commands';
 
     let showNewForm = $state(false);
@@ -58,7 +58,7 @@
     {#if showOpenForm}
         <form class="welcome-form" onsubmit={(e) => { e.preventDefault(); handleOpenFolder(); }}>
             <input type="text" placeholder="Path to notebook folder..." bind:value={openPath} />
-            <button type="submit" disabled={loading}>Open</button>
+            <button type="submit" disabled={isLoading()}>Open</button>
         </form>
     {/if}
 
@@ -66,7 +66,7 @@
         <form class="welcome-form" onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>
             <input type="text" placeholder="Notebook name..." bind:value={newName} />
             <input type="text" placeholder="Path to create notebook..." bind:value={newPath} />
-            <button type="submit" disabled={loading}>Create</button>
+            <button type="submit" disabled={isLoading()}>Create</button>
         </form>
     {/if}
 </div>

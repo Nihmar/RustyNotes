@@ -5,7 +5,7 @@
     import { createEditorExtensions } from '$lib/editor-engine/setup';
     import { renderMarkdown } from '$lib/editor-engine/reading-view';
     import { livePreview } from '$lib/editor-engine/live-preview';
-    import { editorMode } from '$lib/stores/ui.svelte';
+    import { getEditorMode } from '$lib/stores/ui.svelte';
 
     let { content = '' }: { content?: string } = $props();
 
@@ -62,7 +62,7 @@
         const cmEl = wrapper.querySelector('.cm-editor') as HTMLElement | null;
         const readingEl = wrapper.querySelector('.reading-view') as HTMLElement | null;
 
-        if (editorMode === 'reading') {
+        if (getEditorMode() === 'reading') {
             if (cmEl) cmEl.style.display = 'none';
             if (readingEl) readingEl.style.display = '';
             // Remove live preview if active
@@ -73,7 +73,7 @@
             if (cmEl) cmEl.style.display = '';
             if (readingEl) readingEl.style.display = 'none';
 
-            if (editorMode === 'live-preview') {
+            if (getEditorMode() === 'live-preview') {
                 view.dispatch({
                     effects: livePreviewCompartment.reconfigure(livePreview())
                 });

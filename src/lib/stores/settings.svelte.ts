@@ -16,14 +16,14 @@ const defaults: AppSettings = {
     autosaveIntervalMs: 500
 };
 
-let settings = $state<AppSettings>({ ...defaults });
+const state = $state<AppSettings>({ ...defaults });
+
+export function getSettings() { return state; }
 
 export function update(partial: Partial<AppSettings>) {
-    settings = { ...settings, ...partial };
+    Object.assign(state, partial);
 }
 
 export function reset() {
-    settings = { ...defaults };
+    Object.assign(state, defaults);
 }
-
-export { settings };

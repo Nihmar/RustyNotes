@@ -3,10 +3,10 @@
     import { listNotes, readNote, deleteNote, renameNote, createNote } from '$lib/commands';
     import { buildFileTree } from '$lib/commands';
     import {
-        activeNotePath,
+        getActiveNotePath,
         setTree, setActiveNote, setContent, markClean
     } from '$lib/stores/notes.svelte';
-    import { activeNotebook } from '$lib/stores/notebook.svelte';
+    import { getActiveNotebook } from '$lib/stores/notebook.svelte';
     import type { TreeNode } from '$lib/types';
 
     let fileTree = $state<TreeNode[]>([]);
@@ -32,7 +32,7 @@
     });
 
     $effect(() => {
-        void activeNotebook;
+        void getActiveNotebook();
         loadNotes();
     });
 
@@ -89,7 +89,7 @@
         if (!confirm(`Delete "${node.name}"?`)) return;
         try {
             await deleteNote(node.path);
-            if (activeNotePath === node.path) {
+            if (getActiveNotePath() === node.path) {
                 setActiveNote(null);
                 setContent('');
             }
@@ -124,7 +124,7 @@
     }
 
     function isActiveNode(node: TreeNode): boolean {
-        return node.type === 'file' && activeNotePath === node.path;
+        return node.type === 'file' && getActiveNotePath() === node.path;
     }
 
     $effect(() => {

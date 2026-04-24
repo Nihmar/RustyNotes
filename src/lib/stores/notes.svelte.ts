@@ -1,25 +1,30 @@
 import type { NoteMeta } from '$lib/types';
 
-let noteTree = $state<NoteMeta[]>([]);
-let activeNotePath = $state<string | null>(null);
-let activeNoteContent = $state('');
-let isDirty = $state(false);
+const state = $state({
+    noteTree: [] as NoteMeta[],
+    activeNotePath: null as string | null,
+    activeNoteContent: '',
+    isDirty: false
+});
+
+export function getNoteTree() { return state.noteTree; }
+export function getActiveNotePath() { return state.activeNotePath; }
+export function getActiveNoteContent() { return state.activeNoteContent; }
+export function isDirty() { return state.isDirty; }
 
 export function setTree(notes: NoteMeta[]) {
-    noteTree = notes;
+    state.noteTree = notes;
 }
 
 export function setActiveNote(path: string | null) {
-    activeNotePath = path;
+    state.activeNotePath = path;
 }
 
 export function setContent(content: string) {
-    activeNoteContent = content;
-    isDirty = true;
+    state.activeNoteContent = content;
+    state.isDirty = true;
 }
 
 export function markClean() {
-    isDirty = false;
+    state.isDirty = false;
 }
-
-export { noteTree, activeNotePath, activeNoteContent, isDirty };

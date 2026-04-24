@@ -3,8 +3,8 @@
     import Sidebar from '$lib/components/sidebar/Sidebar.svelte';
     import EditorPane from '$lib/components/editor/EditorPane.svelte';
     import WelcomeScreen from '$lib/components/WelcomeScreen.svelte';
-    import { activeNotebook } from '$lib/stores/notebook.svelte';
-    import { sidebarVisible } from '$lib/stores/ui.svelte';
+    import { getActiveNotebook } from '$lib/stores/notebook.svelte';
+    import { getSidebarVisible } from '$lib/stores/ui.svelte';
     import { setupFileWatcher } from '$lib/events';
 
     onMount(() => {
@@ -12,8 +12,8 @@
     });
 </script>
 
-<div class="app" class:sidebar-hidden={!sidebarVisible}>
-    {#if activeNotebook}
+<div class="app" class:sidebar-hidden={!getSidebarVisible()}>
+    {#if getActiveNotebook()}
         <Sidebar />
         <EditorPane />
     {:else}

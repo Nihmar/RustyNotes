@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { activeNotebook, recentNotebooks, loading, setActive, setRecent, setLoading } from '$lib/stores/notebook.svelte';
+    import { getActiveNotebook, getRecentNotebooks, isLoading, setActive, setRecent, setLoading } from '$lib/stores/notebook.svelte';
     import { listNotebooks, openNotebook, createNotebook } from '$lib/commands';
     import type { NotebookInfo } from '$lib/types';
 
@@ -73,10 +73,10 @@
 <div class="notebook-selector">
     <h3>Notebook</h3>
 
-    {#if activeNotebook}
+    {#if getActiveNotebook()}
         <div class="active-notebook">
             <span class="nb-icon">📓</span>
-            <span class="nb-name">{activeNotebook.name}</span>
+            <span class="nb-name">{getActiveNotebook().name}</span>
         </div>
     {/if}
 
@@ -84,10 +84,10 @@
         <p class="error">{error}</p>
     {/if}
 
-    {#if recentNotebooks.length > 0}
+    {#if getRecentNotebooks().length > 0}
         <div class="recent-list">
             <p class="label">Recent</p>
-            {#each recentNotebooks as nb}
+            {#each getRecentNotebooks() as nb}
                 <button class="recent-item" onclick={() => handleOpenRecent(nb)}>
                     {nb.name}
                 </button>
@@ -107,7 +107,7 @@
     {#if showOpenForm}
         <form class="form" onsubmit={(e) => { e.preventDefault(); handleOpenFolder(); }}>
             <input type="text" placeholder="Notebook path..." bind:value={openPath} />
-            <button type="submit" disabled={loading}>Open</button>
+            <button type="submit" disabled={isLoading()}>Open</button>
         </form>
     {/if}
 
@@ -115,7 +115,7 @@
         <form class="form" onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>
             <input type="text" placeholder="Notebook name..." bind:value={newName} />
             <input type="text" placeholder="Notebook path..." bind:value={newPath} />
-            <button type="submit" disabled={loading}>Create</button>
+            <button type="submit" disabled={isLoading()}>Create</button>
         </form>
     {/if}
 </div>
