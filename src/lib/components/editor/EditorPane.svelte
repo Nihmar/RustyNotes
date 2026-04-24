@@ -55,6 +55,7 @@
         <Editor
             bind:this={editorRef}
             content={getActiveNoteContent()}
+            onchange={handleContentChange}
         />
     {:else}
         <div class="no-note">

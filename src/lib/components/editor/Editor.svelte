@@ -7,7 +7,7 @@
     import { livePreview } from '$lib/editor-engine/live-preview';
     import { getEditorMode } from '$lib/stores/ui.svelte';
 
-    let { content = '' }: { content?: string } = $props();
+    let { content = '', onchange }: { content?: string; onchange?: (content: string) => void } = $props();
 
     let editorContainer: HTMLDivElement | undefined = $state();
     let view: EditorView | undefined = $state();
@@ -21,7 +21,12 @@
             doc: content,
             extensions: [
                 ...createEditorExtensions(),
-                livePreviewCompartment.of([])
+                livePreviewCompartment.of([]),
+                EditorView.updateListener.of((v) => {
+                    if (v.docChanged) {
+                        onchange?.(v.state.doc.toString());
+                    }
+                })
             ]
         });
         view = new EditorView({
@@ -64,7 +69,7 @@
 
         if (getEditorMode() === 'reading') {
             if (cmEl) cmEl.style.display = 'none';
-            if (readingEl) readingEl.style.display = '';
+            if (readingEl) readingEl.style.display = 'block';
             // Remove live preview if active
             view.dispatch({
                 effects: livePreviewCompartment.reconfigure([])
