@@ -4,7 +4,7 @@
     import { EditorState, Compartment } from '@codemirror/state';
     import type { EditorMode } from '$lib/types';
     import { createEditorExtensions, createLivePreviewExtensions } from '$lib/editor-engine/setup';
-    import { renderMarkdown } from '$lib/editor-engine/reading-view';
+    import LazyReadingView from './LazyReadingView.svelte';
     import { setMouseSelecting } from 'codemirror-live-markdown';
     import { darkExtensions } from '$lib/editor-engine/themes/dark';
     import { lightExtensions } from '$lib/editor-engine/themes/light';
@@ -25,7 +25,6 @@
     let cmContainer: HTMLDivElement | undefined = $state();
     let view: EditorView | undefined = $state();
     let isExternalUpdate = false;
-    let renderedHtml = $derived(mode === 'reading' ? renderMarkdown(content) : '');
 
     const livePreviewExtensionsCompartment = new Compartment();
     const themeCompartment = new Compartment();
@@ -144,7 +143,7 @@
 <div class="editor-wrapper" class:lp-active={mode === 'live-preview'}>
     <div class="cm-container" class:cm-hidden={mode === 'reading'} bind:this={cmContainer}></div>
     <div class="reading-view" class:rv-visible={mode === 'reading'}>
-        {@html renderedHtml}
+        <LazyReadingView {content} />
     </div>
 </div>
 

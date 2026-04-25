@@ -28,6 +28,7 @@ export function splitMarkdownIntoSections(raw: string): MarkdownSection[] {
     let currentHeading = '';
     let currentHeadingLevel: 1 | 2 = 1;
     let firstHeadingSkipped = false;
+    let contentHash = raw.slice(0, 32).replace(/[^a-zA-Z0-9]/g, '_');
 
     function flushSection(tokensToFlush: Tokens[], startIdx: number, heading: string, level: 1 | 2, isFirst: boolean) {
         if (tokensToFlush.length === 0) return;
@@ -36,12 +37,11 @@ export function splitMarkdownIntoSections(raw: string): MarkdownSection[] {
             .join('');
         if (!sectionRaw.trim()) return;
 
-        const charCount = sectionRaw.length;
         const lines = countLines(sectionRaw);
         const estimatedHeight = Math.ceil(lines * 26 + 60);
 
         sections.push({
-            id: `section-${sections.length}`,
+            id: `section-${contentHash}-${sections.length}`,
             heading: isFirst && heading ? heading : heading,
             headingLevel: level,
             rawContent: sectionRaw,
@@ -72,7 +72,7 @@ export function splitMarkdownIntoSections(raw: string): MarkdownSection[] {
 
     if (sections.length === 0) {
         sections.push({
-            id: 'section-0',
+            id: `section-${contentHash}-0`,
             heading: '',
             headingLevel: 1,
             rawContent: raw,
