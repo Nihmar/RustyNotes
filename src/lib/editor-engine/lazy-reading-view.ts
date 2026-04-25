@@ -1,4 +1,4 @@
-import { marked } from 'marked';
+import { marked, Lexer, type Tokens } from 'marked';
 import '$lib/editor-engine/reading-view';
 
 export interface MarkdownSection {
@@ -9,45 +9,80 @@ export interface MarkdownSection {
     estimatedHeight: number;
 }
 
-/**
- * Split raw markdown into sections at h1/h2 heading boundaries.
- * Uses a regex split that keeps each heading with its following content.
- *
- * Known limitation: fenced code blocks containing lines that look like
- * headings (`# ` or `## ` at line start) will cause false splits.
- * A Lezer-based AST walk would handle this correctly but would be
- * significantly more complex. In practice this edge case is rare.
- */
-export function splitMarkdownIntoSections(raw: string): MarkdownSection[] {
-    const parts = raw.split(/^(?=#{1,2}\s)/m);
-
-    return parts
-        .filter(part => part.trim().length > 0)
-        .map((part, i) => {
-            const headingMatch = part.match(/^(#{1,2})\s+(.+)$/m);
-            const level = headingMatch
-                ? (headingMatch[1].length as 1 | 2)
-                : 1;
-            const heading = headingMatch ? headingMatch[2].trim() : '';
-
-            const lines = Math.max(part.length / 65, 1);
-            const estimatedHeight = Math.ceil(lines * 26 + 60);
-
-            return {
-                id: `section-${i}`,
-                heading,
-                headingLevel: level,
-                rawContent: part,
-                estimatedHeight
-            };
-        });
+function countLines(text: string): number {
+    let count = 0;
+    for (let i = 0; i < text.length; i++) {
+        if (text[i] === '\n') count++;
+    }
+    return Math.max(count, 1);
 }
 
-/**
- * Parse a single section's raw markdown to HTML.
- * Uses the same `marked` instance (with registered extensions from reading-view.ts)
- * so wiki-links, LaTeX, etc. render correctly within each section.
- */
+export function splitMarkdownIntoSections(raw: string): MarkdownSection[] {
+    if (!raw.trim()) return [];
+
+    const tokens = Lexer.lex(raw, { silent: true });
+    const sections: MarkdownSection[] = [];
+
+    let currentSectionTokens: Tokens[] = [];
+    let sectionStartIndex = 0;
+    let currentHeading = '';
+    let currentHeadingLevel: 1 | 2 = 1;
+    let firstHeadingSkipped = false;
+
+    function flushSection(tokensToFlush: Tokens[], startIdx: number, heading: string, level: 1 | 2, isFirst: boolean) {
+        if (tokensToFlush.length === 0) return;
+        const sectionRaw = tokensToFlush
+            .map(t => (t as Tokens.Heading).raw ?? '')
+            .join('');
+        if (!sectionRaw.trim()) return;
+
+        const charCount = sectionRaw.length;
+        const lines = countLines(sectionRaw);
+        const estimatedHeight = Math.ceil(lines * 26 + 60);
+
+        sections.push({
+            id: `section-${sections.length}`,
+            heading: isFirst && heading ? heading : heading,
+            headingLevel: level,
+            rawContent: sectionRaw,
+            estimatedHeight
+        });
+    }
+
+    for (const token of tokens) {
+        if (token.type === 'heading') {
+            const h = token as Tokens.Heading;
+            if (h.depth === 1 || h.depth === 2) {
+                if (currentSectionTokens.length > 0) {
+                    flushSection(currentSectionTokens, sectionStartIndex, currentHeading, currentHeadingLevel, firstHeadingSkipped);
+                    currentSectionTokens = [];
+                }
+                currentHeading = h.text;
+                currentHeadingLevel = h.depth as 1 | 2;
+                sectionStartIndex = sections.length;
+                if (!firstHeadingSkipped) firstHeadingSkipped = true;
+            }
+        }
+        currentSectionTokens.push(token);
+    }
+
+    if (currentSectionTokens.length > 0) {
+        flushSection(currentSectionTokens, sectionStartIndex, currentHeading, currentHeadingLevel, firstHeadingSkipped);
+    }
+
+    if (sections.length === 0) {
+        sections.push({
+            id: 'section-0',
+            heading: '',
+            headingLevel: 1,
+            rawContent: raw,
+            estimatedHeight: Math.ceil(countLines(raw) * 26 + 60)
+        });
+    }
+
+    return sections;
+}
+
 export function renderSection(raw: string): string {
     return marked.parse(raw, { async: false }) as string;
 }

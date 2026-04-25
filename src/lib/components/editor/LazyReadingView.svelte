@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy, tick } from 'svelte';
+    import { onMount } from 'svelte';
     import {
         splitMarkdownIntoSections,
         renderSection,
@@ -9,135 +9,80 @@
     let { content = '' }: { content: string } = $props();
 
     let sections: MarkdownSection[] = $state([]);
-    let loadedHtml: Map<string, string> = $state(new Map());
+    let rendered: string[] = $state([]);
     let container: HTMLDivElement | undefined = $state();
-    let observer: IntersectionObserver | null = $state(null);
-    let destroyed = false;
+    let observer: IntersectionObserver | null = null;
+    let currentContent = '';
 
-    let queue: string[] = [];
-    let draining = false;
-    let rafId: number | null = null;
+    $effect(() => {
+        const newSections = splitMarkdownIntoSections(content);
+        if (newSections.length !== sections.length ||
+            newSections.some((s, i) => s.rawContent !== sections[i]?.rawContent)) {
+            sections = newSections;
+            rendered = new Array(newSections.length).fill('');
+            currentContent = content;
 
-    function schedule(id: string) {
-        if (destroyed || loadedHtml.has(id) || queue.includes(id)) return;
-        const section = sections.find(s => s.id === id);
-        if (!section) return;
-        queue.push(id);
-        if (!draining) {
-            draining = true;
-            rafId = requestAnimationFrame(drain);
-        }
-    }
-
-    function drain() {
-        if (destroyed) {
-            queue = [];
-            draining = false;
-            rafId = null;
-            return;
-        }
-
-        rafId = null;
-        const budget = 12;
-        const deadline = performance.now() + budget;
-
-        while (queue.length > 0 && performance.now() < deadline && !destroyed) {
-            const id = queue.shift()!;
-            const section = sections.find(s => s.id === id);
-            if (!section || loadedHtml.has(id)) continue;
-            try {
-                if (!destroyed) {
-                    loadedHtml.set(id, renderSection(section.rawContent));
-                }
-            } catch (e) {
-                console.error('Failed to parse section', id, e);
+            if (observer) {
+                observer.disconnect();
             }
         }
-
-        if (destroyed) {
-            queue = [];
-            draining = false;
-            rafId = null;
-            return;
-        }
-
-        if (queue.length > 0) {
-            rafId = requestAnimationFrame(drain);
-        } else {
-            draining = false;
-            rafId = null;
-        }
-    }
-
-    $effect(() => {
-        sections = splitMarkdownIntoSections(content);
-        loadedHtml = new Map();
-        queue = [];
-        draining = false;
-
-        observer?.disconnect();
-
-        if (sections.length > 0) {
-            schedule(sections[0].id);
-        }
     });
 
     $effect(() => {
-        const obs = observer;
         const el = container;
-        if (!obs || !el || sections.length === 0) return;
+        if (!el || sections.length === 0) return;
 
-        tick().then(() => {
-            if (destroyed || !obs || !el) return;
-            el.querySelectorAll('[data-section-id]').forEach(child => {
-                obs.observe(child);
-            });
-        });
-    });
-
-    onMount(() => {
-        const root = container?.closest('.editor-wrapper') ?? null;
+        if (observer) {
+            observer.disconnect();
+        }
 
         observer = new IntersectionObserver(
             (entries) => {
-                if (destroyed) return;
                 for (const entry of entries) {
-                    const id = entry.target.getAttribute('data-section-id');
-                    if (!id || !entry.isIntersecting) continue;
-                    if (loadedHtml.has(id)) {
+                    if (!entry.isIntersecting) continue;
+                    const idx = parseInt(entry.target.getAttribute('data-section-index') ?? '-1', 10);
+                    if (idx < 0 || idx >= sections.length) continue;
+                    if (rendered[idx]) {
                         observer?.unobserve(entry.target);
                         continue;
                     }
-                    const section = sections.find(s => s.id === id);
-                    if (!section) continue;
-                    schedule(id);
+                    try {
+                        rendered[idx] = renderSection(sections[idx].rawContent);
+                    } catch (e) {
+                        console.error('Failed to parse section', idx, e);
+                        rendered[idx] = `<p>Error rendering section.</p>`;
+                    }
                     observer?.unobserve(entry.target);
                 }
             },
             {
-                root,
-                rootMargin: '200% 0px'
+                rootMargin: '300px 0px'
             }
         );
+
+        el.querySelectorAll('[data-section-index]').forEach(child => {
+            observer!.observe(child);
+        });
+
+        return () => {
+            observer?.disconnect();
+            observer = null;
+        };
     });
 
-    onDestroy(() => {
-        destroyed = true;
-        if (rafId !== null) {
-            cancelAnimationFrame(rafId);
-            rafId = null;
-        }
-        observer?.disconnect();
-        queue = [];
-        draining = false;
+    onMount(() => {
+        return () => {
+            observer?.disconnect();
+            observer = null;
+        };
     });
 </script>
 
 <div class="lazy-reading-view" bind:this={container}>
-    {#each sections as section (section.id)}
-        <div class="section-container" data-section-id={section.id}>
-            {#if loadedHtml.has(section.id)}
-                {@html loadedHtml.get(section.id) ?? ''}
+    {#each sections as section, i (section.id)}
+        <div class="section-container" data-section-index={i}>
+            {#if rendered[i]}
+                {@html rendered[i]}
             {:else}
                 <div
                     class="section-placeholder"
