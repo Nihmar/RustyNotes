@@ -16,13 +16,16 @@
 
     let queue: string[] = [];
     let draining = false;
+    let rafId: number | null = null;
 
     function schedule(id: string) {
         if (destroyed || loadedHtml.has(id) || queue.includes(id)) return;
+        const section = sections.find(s => s.id === id);
+        if (!section) return;
         queue.push(id);
         if (!draining) {
             draining = true;
-            requestAnimationFrame(drain);
+            rafId = requestAnimationFrame(drain);
         }
     }
 
@@ -30,27 +33,39 @@
         if (destroyed) {
             queue = [];
             draining = false;
+            rafId = null;
             return;
         }
 
-        const budget = 12; // ms
+        rafId = null;
+        const budget = 12;
         const deadline = performance.now() + budget;
 
-        while (queue.length > 0 && performance.now() < deadline) {
+        while (queue.length > 0 && performance.now() < deadline && !destroyed) {
             const id = queue.shift()!;
             const section = sections.find(s => s.id === id);
             if (!section || loadedHtml.has(id)) continue;
             try {
-                loadedHtml.set(id, renderSection(section.rawContent));
+                if (!destroyed) {
+                    loadedHtml.set(id, renderSection(section.rawContent));
+                }
             } catch (e) {
                 console.error('Failed to parse section', id, e);
             }
         }
 
+        if (destroyed) {
+            queue = [];
+            draining = false;
+            rafId = null;
+            return;
+        }
+
         if (queue.length > 0) {
-            requestAnimationFrame(drain);
+            rafId = requestAnimationFrame(drain);
         } else {
             draining = false;
+            rafId = null;
         }
     }
 
@@ -108,6 +123,10 @@
 
     onDestroy(() => {
         destroyed = true;
+        if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+        }
         observer?.disconnect();
         queue = [];
         draining = false;
