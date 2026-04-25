@@ -142,9 +142,11 @@
 
 <div class="editor-wrapper" class:lp-active={mode === 'live-preview'}>
     <div class="cm-container" class:cm-hidden={mode === 'reading'} bind:this={cmContainer}></div>
-    <div class="reading-view" class:rv-visible={mode === 'reading'}>
-        <LazyReadingView {content} />
-    </div>
+    {#if mode === 'reading'}
+        <div class="reading-view">
+            <LazyReadingView {content} />
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -206,15 +208,12 @@
     }
 
     .reading-view {
-        display: none;
         max-width: 800px;
         margin: 0 auto;
         padding: 16px 24px;
         overflow-wrap: break-word;
-    }
-
-    .reading-view.rv-visible {
-        display: block;
+        height: 100%;
+        overflow-y: auto;
     }
 
     :global(.reading-view h1) { font-size: 2em; margin: 0.5em 0; }
