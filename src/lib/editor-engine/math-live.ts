@@ -6,7 +6,7 @@ import {
     WidgetType
 } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import { RangeSetBuilder, StateField } from '@codemirror/state';
+import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
 import katex from 'katex';
 
 class MathWidget extends WidgetType {
@@ -76,7 +76,7 @@ const inlineMathPlugin = ViewPlugin.fromClass(class {
 });
 
 function buildDisplayMath(state: EditorState): DecorationSet {
-    const decorations: { from: number; to: number; deco: Decoration }[] = [];
+    const decorations: { from: number; to: number; value: Decoration }[] = [];
     const doc = state.doc;
     let inBlock = false;
     let blockStartLine = -1;
@@ -101,7 +101,7 @@ function buildDisplayMath(state: EditorState): DecorationSet {
                 decorations.push({
                     from: blockFrom,
                     to: blockTo,
-                    deco: Decoration.replace({ widget, block: true })
+                    value: Decoration.replace({ widget, block: true })
                 });
             } else {
                 for (let j = blockStartLine; j <= i; j++) {
@@ -109,7 +109,7 @@ function buildDisplayMath(state: EditorState): DecorationSet {
                     decorations.push({
                         from: l.from,
                         to: l.from,
-                        deco: Decoration.line({ class: 'cm-math-source-block' })
+                        value: Decoration.line({ class: 'cm-math-source-block' })
                     });
                 }
             }
