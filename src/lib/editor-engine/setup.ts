@@ -38,9 +38,8 @@ import {
     editorTheme,
     mouseSelectingField,
     collapseOnSelectionFacet,
-    mathPlugin,
-    blockMathField
 } from 'codemirror-live-markdown';
+import { mathExtensions } from './math-live';
 
 export function createEditorExtensions(): Extension[] {
     return [
@@ -118,8 +117,7 @@ export function createLivePreviewExtensions(): Extension[] {
         markdownStylePlugin,
         editorTheme,
         listMarkPlugin,
-        mathPlugin,
-        blockMathField
+        ...mathExtensions(),
     ];
 }
 

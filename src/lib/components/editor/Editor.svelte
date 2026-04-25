@@ -274,6 +274,16 @@
         display: inline !important;
     }
 
+    .editor-wrapper.lp-active :global(.cm-formatting-block) {
+        font-size: 0.01em !important;
+        opacity: 0 !important;
+    }
+
+    .editor-wrapper.lp-active :global(.cm-formatting-block-visible) {
+        font-size: 1em !important;
+        opacity: 0.6 !important;
+    }
+
     :global(.cm-wikilink-bracket) { opacity: 0.5; }
     :global(.cm-wikilink-content) { color: var(--accent, #61afef); cursor: pointer; }
     :global(.cm-wikilink-content:hover) { text-decoration: underline; }
