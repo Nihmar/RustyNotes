@@ -4,7 +4,7 @@
     import { EditorState, Compartment } from '@codemirror/state';
     import type { EditorMode } from '$lib/types';
     import { createEditorExtensions, createLivePreviewExtensions } from '$lib/editor-engine/setup';
-    import { renderMarkdown } from '$lib/editor-engine/reading-view';
+    import LazyReadingView from './LazyReadingView.svelte';
     import { setMouseSelecting } from 'codemirror-live-markdown';
     import { darkExtensions } from '$lib/editor-engine/themes/dark';
     import { lightExtensions } from '$lib/editor-engine/themes/light';
@@ -24,7 +24,6 @@
 
     let cmContainer: HTMLDivElement | undefined = $state();
     let view: EditorView | undefined = $state();
-    let renderedHtml = $derived(mode === 'reading' ? renderMarkdown(content) : '');
     let isExternalUpdate = false;
 
     const livePreviewExtensionsCompartment = new Compartment();
@@ -143,9 +142,11 @@
 
 <div class="editor-wrapper" class:lp-active={mode === 'live-preview'}>
     <div class="cm-container" class:cm-hidden={mode === 'reading'} bind:this={cmContainer}></div>
-    <div class="reading-view" class:rv-visible={mode === 'reading'}>
-        {@html renderedHtml}
-    </div>
+    {#if mode === 'reading'}
+        <div class="reading-view">
+            <LazyReadingView {content} />
+        </div>
+    {/if}
 </div>
 
 <style>
@@ -210,15 +211,7 @@
         max-width: 800px;
         margin: 0 auto;
         padding: 16px 24px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        font-size: 15px;
-        line-height: 1.7;
-        display: none;
         overflow-wrap: break-word;
-    }
-
-    .reading-view.rv-visible {
-        display: block;
     }
 
     :global(.reading-view h1) { font-size: 2em; margin: 0.5em 0; }
