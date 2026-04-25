@@ -26,7 +26,11 @@ The Cargo.toml lib is named `rustynotes_lib` because cargo on Windows barfs when
 
 ## Tauri 2 capabilities / permissions
 
-Permissions are in `src-tauri/capabilities/default.json`. Currently `core:default` + `opener:default`. When adding FS ops, Tauri 2 requires explicit permissions in the capability file — not just code changes.
+Permissions are in `src-tauri/capabilities/default.json`. Currently `core:default` + `opener:default` + `dialog:default`. When adding new capabilities (FS ops, dialogs, etc.), Tauri 2 requires explicit permissions in this file — not just code changes.
+
+Plugins registered in `lib.rs`: `tauri_plugin_opener`, `tauri_plugin_dialog`. If you add a new Tauri plugin, register it in both `lib.rs` and `Cargo.toml`, then add its permission to `capabilities/default.json`.
+
+`tsconfig.json` extends `.svelte-kit/tsconfig.json` (generated). Running `tsc` directly will fail unless `svelte-kit sync` has run first. Use `yarn check` (which chains both) instead.
 
 ## Architecture
 
@@ -61,9 +65,10 @@ Single-crate, single-package repo (not a monorepo).
 
 ## FS watcher behavior
 
-- Uses `notify` crate with `Config::default().with_poll_interval(Duration::from_secs(1))` — polling mode for cross-platform reliability, not OS-native events.
+- Uses `notify` crate (`Config::default().with_poll_interval(Duration::from_secs(1))`) — polling mode for cross-platform reliability.
 - Only watches `.md` files; ignores other changes.
-- Debounce window is 100ms to avoid duplicate events.
+- Debounce window is 100ms.
+- Emits `note-created`, `note-modified`, `note-deleted` events — frontend listens in `src/lib/events.ts`.
 
 ## State management
 
