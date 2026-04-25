@@ -44,6 +44,7 @@ import { mathExtensions } from './math-live';
 export function createEditorExtensions(): Extension[] {
     return [
         lineNumbers(),
+        EditorView.lineWrapping,
         highlightActiveLineGutter(),
         highlightSpecialChars(),
         history(),

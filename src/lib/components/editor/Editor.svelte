@@ -214,6 +214,7 @@
         font-size: 15px;
         line-height: 1.7;
         display: none;
+        overflow-wrap: break-word;
     }
 
     .reading-view.rv-visible {
