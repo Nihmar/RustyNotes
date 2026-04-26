@@ -202,11 +202,7 @@
                 isExternalUpdate = true;
             }
 
-            if (previousMode === 'reading' && currentMode === 'live-preview') {
-                requestAnimationFrame(() => view?.dispatch(tr));
-            } else {
-                view.dispatch(tr);
-            }
+            view.dispatch(tr);
         }
 
         // Restore scroll position
@@ -275,7 +271,10 @@
     }
 
     .cm-container.cm-hidden {
-        display: none;
+        position: absolute;
+        inset: 0;
+        visibility: hidden;
+        pointer-events: none;
     }
 
     :global(.cm-container .cm-editor) {
