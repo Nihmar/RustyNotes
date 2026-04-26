@@ -7,17 +7,18 @@ Runs on Windows, Linux, macOS, Android, and iOS.
 
 | Status | Feature |
 |--------|---------|
-| 🚧 | Notebook management (create, open, switch between note folders) |
-| 🚧 | Markdown editing with syntax highlighting (CodeMirror 6) |
-| 🚧 | Three editor modes: Edit, Live Preview, Reading — all inline, no split panes |
-| 🚧 | File tree sidebar with recursive note browsing |
-| 🚧 | Full-text search across all notes |
-| 🚧 | `#tags` extraction and tag browser |
-| 🚧 | `[[wiki-link]]` navigation between notes |
-| 🚧 | Multiple tabs |
-| 🚧 | Dark/light theme |
-| 🚧 | Autosave + external file change detection |
-| 📋 | Plugin system |
+| ✅ | Notebook management (create, open, switch between note folders) |
+| ✅ | Markdown editing with syntax highlighting (CodeMirror 6) |
+| ✅ | Three editor modes: Edit, Live Preview, Reading — all inline, no split panes |
+| ✅ | File tree sidebar with recursive note browsing |
+| ✅ | Full-text search across all notes |
+| ✅ | `#tags` extraction and tag browser |
+| ⚠️ | `[[wiki-link]]` navigation between notes (style/decoration done, click handler pending) |
+| ✅ | Multiple tabs |
+| ✅ | Dark/light theme |
+| ⚠️ | Autosave (debounced write) done; conflict detection for external changes pending |
+| ✅ | Plugin system (types + loader skeleton) |
+| ⚠️ | Mobile adaptations (basic responsive sidebar, rest pending) |
 
 ## Tech Stack
 
@@ -77,22 +78,15 @@ Recommended VS Code extensions (see `.vscode/extensions.json`):
 - [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode)
 - [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
 
-## Resuming Development with opencode
+## Development with opencode
 
-This project was planned and is being built using opencode. Tasks are tracked in markdown.
+Most development tasks (T1–T15, T17–T18 out of 19) are implemented. Remaining work:
 
-**To resume work in a new session:**
+- **T14** — Wiki-link click handler in CodeMirror editor
+- **T16** — Conflict detection when note modified externally while open
+- **T19** — Mobile adaptations (touch targets, drawer overlay, mobile capability config)
 
-1. Ask opencode to load the task list:
-   > _Read docs/TASKS.md and load all tasks using todowrite. Start from T1._
-
-2. To continue from a specific task:
-   > _Read docs/ARCHITECTURE.md and docs/TASKS.md. Start from T6._
-
-The architecture and full task breakdown (19 tasks across 10 phases) are documented in:
-
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — stack, crate structure, Tauri commands, editor modes, data flow
-- [`docs/TASKS.md`](docs/TASKS.md) — task dependency graph, file lists per task, step-by-step instructions
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/TASKS.md`](docs/TASKS.md) for details.
 
 ## Project Structure
 
@@ -101,10 +95,11 @@ RustyNotes/
 ├── src/                      # SvelteKit frontend
 │   ├── lib/
 │   │   ├── components/       # UI components (sidebar, editor, etc.)
-│   │   ├── editor-engine/    # CodeMirror 6 setup, modes, themes
-│   │   ├── stores/           # Svelte stores (notebook, notes, tabs, etc.)
+│   │   ├── editor-engine/    # CodeMirror 6 setup, modes, themes, live preview, math rendering, lazy reading view
+│   │   ├── stores/           # Svelte 5 runes stores (notebook, notes, tabs, search, UI, settings)
 │   │   ├── plugins/          # Plugin interfaces + loader
-│   │   ├── commands.ts       # Typed Tauri invoke() wrappers
+│   │   ├── commands.ts       # Typed Tauri invoke() wrappers + buildFileTree()
+│   │   ├── events.ts         # Tauri event listeners (file watcher)
 │   │   └── types.ts          # TypeScript types
 │   └── routes/               # SvelteKit routes (SPA: single page)
 ├── src-tauri/                # Tauri / Rust backend

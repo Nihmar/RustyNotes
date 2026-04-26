@@ -25,8 +25,10 @@ A **Notebook** is a folder on disk containing `.md` files and subfolders. The ap
 
 ### Frontend
 - **Framework**: Svelte 5 + SvelteKit (SPA mode via `@sveltejs/adapter-static`)
-- **Editor**: CodeMirror 6 (`codemirror`, `@codemirror/lang-markdown`, `@codemirror/view`, `@codemirror/state`, `@codemirror/commands`, `@codemirror/language`, `@codemirror/search`, `@lezer/highlight`)
-- **Markdown rendering**: `marked` (for reading view only; live preview uses CM6 decorations)
+- **Editor**: CodeMirror 6 (`codemirror`, `@codemirror/*`, `@lezer/*`)
+- **Live preview**: `codemirror-live-markdown` (third-party package, not custom ViewPlugin)
+- **Markdown rendering**: `marked` (for reading view only; live preview uses `codemirror-live-markdown`)
+- **Math rendering**: KaTeX (`katex`) via custom CM6 ViewPlugin in `math-live.ts`
 - **Bundler**: Vite 6
 - **Language**: TypeScript
 
@@ -55,7 +57,7 @@ src-tauri/src/
 └── state.rs             # Tauri managed state (active notebook path, watcher handle)
 ```
 
-### Rust Dependencies (add to `src-tauri/Cargo.toml`)
+### Rust Dependencies (in `src-tauri/Cargo.toml`)
 
 ```toml
 notify = { version = "6", features = ["macos_kqueue"] }
@@ -126,13 +128,13 @@ src/
 │
 ├── lib/
 │   ├── App.svelte                 # Root layout (sidebar + editor area)
-│   ├── commands.ts                # Typed invoke() wrappers for Tauri commands
+│   ├── commands.ts                # Typed invoke() wrappers + buildFileTree()
 │   ├── types.ts                   # Shared TypeScript types
 │   ├── events.ts                  # Tauri event listeners (file watcher)
 │   │
 │   ├── components/
 │   │   ├── sidebar/
-│   │   │   ├── Sidebar.svelte              # Left sidebar container
+│   │   │   ├── Sidebar.svelte              # Left sidebar container (Files/Search/Tags tabs)
 │   │   │   ├── NotebookSelector.svelte     # Open/switch/create notebooks
 │   │   │   ├── FileTree.svelte             # Tree view of notes
 │   │   │   ├── SearchPanel.svelte          # Full-text search UI
@@ -141,49 +143,33 @@ src/
 │   │   ├── editor/
 │   │   │   ├── EditorPane.svelte           # Holds TabBar + active Editor
 │   │   │   ├── TabBar.svelte               # Open tabs
-│   │   │   ├── Tab.svelte                  # Individual tab
 │   │   │   ├── Editor.svelte               # CodeMirror 6 wrapper
-│   │   │   └── ModeSwitcher.svelte         # Edit / Live Preview / Reading toggle
+│   │   │   ├── ModeSwitcher.svelte         # Edit / Live Preview / Reading toggle
+│   │   │   └── LazyReadingView.svelte      # Intersection-based lazy rendering for reading mode
 │   │   │
 │   │   └── WelcomeScreen.svelte            # Shown when no notebook is open
 │   │
 │   ├── editor-engine/
-│   │   ├── setup.ts                # CM6 setup: extensions based on mode
-│   │   ├── live-preview.ts         # ViewPlugin: hide syntax, render inline styles
-│   │   ├── reading-view.ts         # Markdown → HTML (using marked)
-│   │   ├── wikilinks.ts            # [[wiki-link]] syntax highlighting + navigation
+│   │   ├── setup.ts                # CM6 extensions + live-preview extensions (codemirror-live-markdown)
+│   │   ├── reading-view.ts         # Markdown → HTML (using marked) + KaTeX + wikilink rendering
+│   │   ├── lazy-reading-view.ts    # Split markdown into sections + render on scroll
+│   │   ├── wikilinks.ts            # [[wiki-link]] syntax highlighting in CM6 (decoration only)
+│   │   ├── math-live.ts            # KaTeX math rendering ViewPlugin for CM6
 │   │   └── themes/
 │   │       ├── dark.ts             # Dark theme for CodeMirror
 │   │       └── light.ts            # Light theme for CodeMirror
 │   │
 │   ├── stores/
 │   │   ├── notebook.svelte.ts      # Active notebook state
-│   │   ├── notes.svelte.ts         # Notes list, active note
-│   │   ├── tabs.svelte.ts          # Open tabs state
+│   │   ├── notes.svelte.ts         # Notes list, active note, dirty tracking
+│   │   ├── tabs.svelte.ts          # Open tabs state + per-mode scroll preservation
 │   │   ├── search.svelte.ts        # Search query + results
 │   │   ├── ui.svelte.ts            # Theme, sidebar visibility, editor mode
 │   │   └── settings.svelte.ts      # Persisted user preferences
 │   │
 │   └── plugins/
 │       ├── types.ts                # Plugin interfaces
-│       └── loader.ts               # Plugin loader skeleton
-```
-
-### NPM Dependencies (add to `package.json`)
-
-```json
-{
-  "codemirror": "^6.0.1",
-  "@codemirror/state": "^6.5.0",
-  "@codemirror/view": "^6.36.0",
-  "@codemirror/commands": "^6.8.0",
-  "@codemirror/lang-markdown": "^6.3.0",
-  "@codemirror/language": "^6.11.0",
-  "@codemirror/search": "^6.5.0",
-  "@codemirror/lint": "^6.8.0",
-  "@lezer/highlight": "^1.2.0",
-  "marked": "^15.0.0"
-}
+│       └── loader.ts               # Plugin loader skeleton (scan/load/apply hooks)
 ```
 
 ---
@@ -198,20 +184,19 @@ src/
 
 ### 2. Live Preview Mode
 - **Single unified editor** — no separate preview pane (matches Obsidian behavior)
-- Implemented as a **CM6 ViewPlugin** using the Decoration API:
-  - Hide markdown syntax characters (`#`, `**`, `- [ ]`, etc.) via `Decoration.replace`
-  - Apply semantic formatting via `Decoration.mark` (e.g., bold text gets `font-weight: bold`)
-  - The line containing the cursor stays in raw edit mode (no decorations applied)
-  - Headings, lists, blockquotes get indent/bullet decorations
-- Wiki-links render as styled pills with click navigation
-- This is the most complex feature — Obsidian's live preview is the reference
+- Implemented using the **`codemirror-live-markdown`** npm package (pre-built ViewPlugin, not custom)
+  - Collapses markdown syntax on unfocused lines (`collapseOnSelectionFacet`)
+  - Applies semantic formatting via `markdownStylePlugin` and `editorTheme`
+  - The line containing the cursor stays in raw edit mode
+- Custom `listMarkPlugin` (ViewPlugin in `setup.ts`) ensures list markers remain visible
+- KaTeX math rendered inline via custom ViewPlugin in `math-live.ts`
+- Wiki-links styled via custom syntax extension in `wikilinks.ts` (decoration only; click handler TBD)
 
 ### 3. Reading View
 - CM6 editor hidden, replaced by rendered HTML
-- Uses `marked` to parse markdown → HTML
-- Wiki-links rendered as clickable links
-- Code blocks with syntax highlighting (CSS class-based)
-- Scroll position preserved when switching modes
+- Uses `marked` to parse markdown → HTML, with custom extensions for `[[wiki-links]]` and KaTeX (`$...$` / `$$...$$`)
+- Lazy rendering via `LazyReadingView.svelte`: splits markdown into heading-delimited sections, only renders sections as they approach the viewport (IntersectionObserver with 1200px root margin)
+- Scroll position preserved per-tab per-mode when switching modes
 
 ### Mode Switching
 - 3-button toggle in the toolbar (Edit | Live Preview | Reading)
@@ -260,9 +245,9 @@ src/
 
 ---
 
-## Plugin Architecture (Future)
+## Plugin Architecture (Skeleton Implemented)
 
-Design extensibility points from the start:
+Plugin interfaces and loader skeleton are in `src/lib/plugins/`:
 
 | Hook Point | Signature |
 |------------|-----------|
@@ -271,8 +256,9 @@ Design extensibility points from the start:
 | `onEditorInit` | `(view: EditorView) => void` |
 | `markdownExtensions` | `() => Extension[]` |
 
-Plugins are `.js` files in `.rustynotes/plugins/`, loaded via dynamic `import()`.
-The plugin system itself is a future feature — only the interfaces and a loader skeleton are built now.
+- `types.ts` — Plugin interface with optional hook methods
+- `loader.ts` — In-memory plugin registry + `loadPlugins()` (placeholder, future: scan `.rustynotes/plugins/` for `.js` files)
+- Hooks (`applyOnNoteOpen`, `applyOnNoteSave`) are wired but no plugins are loaded at runtime yet
 
 ---
 
@@ -286,11 +272,10 @@ The plugin system itself is a future feature — only the interfaces and a loade
 | Android  | Tauri mobile | File picker for notebook folder, responsive sidebar (drawer), touch targets, on-screen keyboard |
 | iOS      | Tauri mobile | Same mobile considerations. Build on CI (no local device) |
 
-Mobile adaptations:
-- Sidebar → collapsible drawer (hamburger toggle)
-- Larger touch targets for file tree items
-- Touch-friendly mode switcher
-- Mobile capability permission in `tauri.conf.json`
+Mobile adaptations (in progress):
+- Sidebar has hamburger toggle + responsive `@media (max-width: 768px)` fixed overlay (basic)
+- Still missing: larger touch targets, touch-friendly mode switcher, mobile capability config
+- The sidebar already includes collapsible hamburger logic for all viewport sizes
 
 ---
 
