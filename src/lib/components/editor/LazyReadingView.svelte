@@ -15,6 +15,7 @@
     let currentContent = '';
 
     $effect(() => {
+        if (content === currentContent) return;
         const newSections = splitMarkdownIntoSections(content);
         if (newSections.length !== sections.length ||
             newSections.some((s, i) => s.rawContent !== sections[i]?.rawContent)) {

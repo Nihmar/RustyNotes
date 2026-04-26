@@ -1,4 +1,4 @@
-import { marked, Lexer, type Tokens } from 'marked';
+import { marked } from 'marked';
 import '$lib/editor-engine/reading-view';
 
 export interface MarkdownSection {
@@ -17,24 +17,21 @@ function countLines(text: string): number {
     return Math.max(count, 1);
 }
 
+const headingRegex = /^(#{1,2})\s+(.+)$/;
+
 export function splitMarkdownIntoSections(raw: string): MarkdownSection[] {
     if (!raw.trim()) return [];
 
-    const tokens = Lexer.lex(raw, { silent: true });
+    const contentHash = raw.slice(0, 32).replace(/[^a-zA-Z0-9]/g, '_');
     const sections: MarkdownSection[] = [];
 
-    let currentSectionTokens: Tokens[] = [];
-    let sectionStartIndex = 0;
     let currentHeading = '';
     let currentHeadingLevel: 1 | 2 = 1;
-    let firstHeadingSkipped = false;
-    let contentHash = raw.slice(0, 32).replace(/[^a-zA-Z0-9]/g, '_');
+    let currentLines: string[] = [];
 
-    function flushSection(tokensToFlush: Tokens[], startIdx: number, heading: string, level: 1 | 2, isFirst: boolean) {
-        if (tokensToFlush.length === 0) return;
-        const sectionRaw = tokensToFlush
-            .map(t => (t as Tokens.Heading).raw ?? '')
-            .join('');
+    function flushSection() {
+        if (currentLines.length === 0) return;
+        const sectionRaw = currentLines.join('\n');
         if (!sectionRaw.trim()) return;
 
         const lines = countLines(sectionRaw);
@@ -42,33 +39,26 @@ export function splitMarkdownIntoSections(raw: string): MarkdownSection[] {
 
         sections.push({
             id: `section-${contentHash}-${sections.length}`,
-            heading: isFirst && heading ? heading : heading,
-            headingLevel: level,
+            heading: currentHeading,
+            headingLevel: currentHeadingLevel,
             rawContent: sectionRaw,
-            estimatedHeight
+            estimatedHeight,
         });
     }
 
-    for (const token of tokens) {
-        if (token.type === 'heading') {
-            const h = token as Tokens.Heading;
-            if (h.depth === 1 || h.depth === 2) {
-                if (currentSectionTokens.length > 0) {
-                    flushSection(currentSectionTokens, sectionStartIndex, currentHeading, currentHeadingLevel, firstHeadingSkipped);
-                    currentSectionTokens = [];
-                }
-                currentHeading = h.text;
-                currentHeadingLevel = h.depth as 1 | 2;
-                sectionStartIndex = sections.length;
-                if (!firstHeadingSkipped) firstHeadingSkipped = true;
-            }
+    for (const line of raw.split(/\r?\n/)) {
+        const match = headingRegex.exec(line);
+        if (match) {
+            flushSection();
+            currentHeadingLevel = match[1].length as 1 | 2;
+            currentHeading = match[2];
+            currentLines = [line];
+        } else {
+            currentLines.push(line);
         }
-        currentSectionTokens.push(token);
     }
 
-    if (currentSectionTokens.length > 0) {
-        flushSection(currentSectionTokens, sectionStartIndex, currentHeading, currentHeadingLevel, firstHeadingSkipped);
-    }
+    flushSection();
 
     if (sections.length === 0) {
         sections.push({
@@ -76,7 +66,7 @@ export function splitMarkdownIntoSections(raw: string): MarkdownSection[] {
             heading: '',
             headingLevel: 1,
             rawContent: raw,
-            estimatedHeight: Math.ceil(countLines(raw) * 26 + 60)
+            estimatedHeight: Math.ceil(countLines(raw) * 26 + 60),
         });
     }
 
