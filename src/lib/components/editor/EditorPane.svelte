@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { untrack } from 'svelte';
     import Editor from './Editor.svelte';
     import ModeSwitcher from './ModeSwitcher.svelte';
     import TabBar from './TabBar.svelte';
@@ -35,14 +36,15 @@
         const path = getActiveNotePath();
         const content = getActiveNoteContent();
         if (path && content !== undefined && content !== null) {
-            const title = path.split(/[/\\]/).pop()?.replace('.md', '') ?? 'Untitled';
-            openTab({
-                path,
-                title,
-                isDirty: isDirty(),
-                mode: getEditorMode()
+            untrack(() => {
+                const title = path.split(/[/\\]/).pop()?.replace('.md', '') ?? 'Untitled';
+                openTab({
+                    path,
+                    title,
+                    isDirty: isDirty(),
+                    mode: getEditorMode()
+                });
             });
-            // Content is already loaded, set it synchronously to avoid flash
             initialContent = content;
         }
     });
@@ -53,6 +55,9 @@
         const _idx = getActiveTabIndex();
         if (!tab) {
             initialContent = '';
+            setActiveNote(null);
+            setContent('');
+            markClean();
             return;
         }
         // If sidebar already loaded this note, use its content directly
