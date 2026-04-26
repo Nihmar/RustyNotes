@@ -35,7 +35,7 @@ Plugins registered in `lib.rs`: `tauri_plugin_opener`, `tauri_plugin_dialog`. If
 
 ## Architecture
 
-Single-crate, single-package repo (not a monorepo). **Most `docs/TASKS.md` tasks are already implemented** (T1–T15, T17–T18). Check actual files before reimplementing.
+Single-crate, single-package repo (not a monorepo). **Most `docs/TASKS.md` tasks are already implemented** (T1–T18). Check actual files before reimplementing.
 
 | Concern | Path |
 |---------|------|
@@ -60,7 +60,7 @@ Single-crate, single-package repo (not a monorepo). **Most `docs/TASKS.md` tasks
 
 - `src/lib/commands.ts` — typed `invoke()` wrappers for all Tauri commands + `buildFileTree()` utility
 - `src/lib/events.ts` — frontend listener for FS watcher events, refreshes the file tree
-- `src/lib/editor-engine/` — CodeMirror 6 setup, wiki-link support, themes, editor modes, `codemirror-live-markdown` package for live preview, KaTeX math rendering (`math-live.ts`), lazy-reading-view
+- `src/lib/editor-engine/` — CodeMirror 6 setup, wiki-link support (highlighting + click navigation), themes, editor modes, `codemirror-live-markdown` for live preview, KaTeX math rendering (`math-live.ts`), lazy-reading-view
 - `src/lib/stores/` — Svelte 5 runes stores for notes, search, settings, tabs, UI, notebook
 - `src/lib/plugins/` — plugin type definitions and loader
 

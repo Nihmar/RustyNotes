@@ -25,6 +25,12 @@ const activeTab = $derived(state.tabs[state.activeTabIndex] ?? null);
 export function getTabs() { return state.tabs; }
 export function getActiveTabIndex() { return state.activeTabIndex; }
 export function getActiveTab() { return activeTab; }
+export function getTabByPath(path: string): Tab | undefined {
+    return state.tabs.find(t => t.path === path);
+}
+export function findTabIndex(path: string): number {
+    return state.tabs.findIndex(t => t.path === path);
+}
 
 export function openTab(tab: Tab) {
     const existing = state.tabs.findIndex((t) => t.path === tab.path);
@@ -34,6 +40,11 @@ export function openTab(tab: Tab) {
         state.tabs = [...state.tabs, tab];
         state.activeTabIndex = state.tabs.length - 1;
     }
+}
+
+export function openNewTab(tab: Tab) {
+    state.tabs = [...state.tabs, tab];
+    state.activeTabIndex = state.tabs.length - 1;
 }
 
 export function closeTab(index: number) {

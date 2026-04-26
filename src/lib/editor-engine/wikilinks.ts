@@ -49,3 +49,46 @@ const wikilinkPlugin = ViewPlugin.fromClass(class {
 export function wikilinks() {
     return wikilinkPlugin;
 }
+
+// ── Navigation ──
+
+import { readNote, createNote } from '$lib/commands';
+import { openTab, openNewTab } from '$lib/stores/tabs.svelte';
+import { getEditorMode } from '$lib/stores/ui.svelte';
+
+export function parseWikilink(raw: string): { target: string; display: string } {
+    const parts = raw.split('|');
+    const target = parts[0].trim();
+    const display = parts.length > 1 ? parts[1].trim() : target;
+    return { target, display };
+}
+
+export function wikilinkToPath(target: string): string {
+    return target.endsWith('.md') ? target : `${target}.md`;
+}
+
+export function wikilinkTitle(target: string): string {
+    return target.split('/').pop()?.replace('.md', '') ?? 'Untitled';
+}
+
+export async function navigateWikilink(rawText: string, newTab: boolean) {
+    const { target } = parseWikilink(rawText);
+    const targetPath = wikilinkToPath(target);
+    const title = wikilinkTitle(target);
+    const mode = getEditorMode();
+
+    try {
+        await readNote(targetPath);
+    } catch {
+        const parentDir = targetPath.includes('/')
+            ? targetPath.substring(0, targetPath.lastIndexOf('/'))
+            : '.';
+        await createNote(parentDir, title);
+    }
+
+    if (newTab) {
+        openNewTab({ path: targetPath, title, isDirty: false, mode });
+    } else {
+        openTab({ path: targetPath, title, isDirty: false, mode });
+    }
+}

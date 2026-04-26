@@ -5,6 +5,7 @@
         renderSection,
         type MarkdownSection
     } from '$lib/editor-engine/lazy-reading-view';
+    import { navigateWikilink } from '$lib/editor-engine/wikilinks';
 
     let { content = '' }: { content: string } = $props();
 
@@ -72,9 +73,21 @@
     });
 
     onMount(() => {
+        function onReadingWikilinkClick(e: MouseEvent) {
+            const link = (e.target as HTMLElement).closest('a.wikilink');
+            if (!link) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const href = link.getAttribute('href') ?? '';
+            const target = decodeURIComponent(href.replace('note://', ''));
+            navigateWikilink(target, e.ctrlKey || e.metaKey);
+        }
+        container?.addEventListener('click', onReadingWikilinkClick);
+
         return () => {
             observer?.disconnect();
             observer = null;
+            container?.removeEventListener('click', onReadingWikilinkClick);
         };
     });
 </script>

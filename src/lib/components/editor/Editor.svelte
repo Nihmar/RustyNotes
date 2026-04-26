@@ -9,6 +9,7 @@
     import { darkExtensions } from '$lib/editor-engine/themes/dark';
     import { lightExtensions } from '$lib/editor-engine/themes/light';
     import { getActiveTab, getScrollState, setScrollEdit, setScrollReading } from '$lib/stores/tabs.svelte';
+    import { navigateWikilink } from '$lib/editor-engine/wikilinks';
     import 'katex/dist/katex.min.css';
 
     let {
@@ -101,13 +102,24 @@
             if (p) setScrollEdit(p, getScrollRatio(view!.scrollDOM));
         });
         document.addEventListener('mouseup', onMouseUp);
+        cmContainer.addEventListener('click', onWikilinkClick);
     });
 
     onDestroy(() => {
         document.removeEventListener('mouseup', onMouseUp);
         view?.contentDOM.removeEventListener('mousedown', onMouseDown);
+        if (cmContainer) cmContainer.removeEventListener('click', onWikilinkClick);
         view?.destroy();
     });
+
+    function onWikilinkClick(e: MouseEvent) {
+        const el = (e.target as HTMLElement).closest('.cm-wikilink-content');
+        if (!el) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const text = el.textContent ?? '';
+        navigateWikilink(text, e.ctrlKey || e.metaKey);
+    }
 
     export function getContent(): string {
         return view?.state.doc.toString() ?? content;

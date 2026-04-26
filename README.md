@@ -13,10 +13,10 @@ Runs on Windows, Linux, macOS, Android, and iOS.
 | ✅ | File tree sidebar with recursive note browsing |
 | ✅ | Full-text search across all notes |
 | ✅ | `#tags` extraction and tag browser |
-| ⚠️ | `[[wiki-link]]` navigation between notes (style/decoration done, click handler pending) |
+| ✅ | `[[wiki-link]]` navigation between notes |
 | ✅ | Multiple tabs |
 | ✅ | Dark/light theme |
-| ⚠️ | Autosave (debounced write) done; conflict detection for external changes pending |
+| ✅ | Autosave (debounced write) + conflict detection for external changes |
 | ✅ | Plugin system (types + loader skeleton) |
 | ⚠️ | Mobile adaptations (basic responsive sidebar, rest pending) |
 
@@ -80,10 +80,8 @@ Recommended VS Code extensions (see `.vscode/extensions.json`):
 
 ## Development with opencode
 
-Most development tasks (T1–T15, T17–T18 out of 19) are implemented. Remaining work:
+Most development tasks (T1–T18 out of 19) are implemented. Remaining work:
 
-- **T14** — Wiki-link click handler in CodeMirror editor
-- **T16** — Conflict detection when note modified externally while open
 - **T19** — Mobile adaptations (touch targets, drawer overlay, mobile capability config)
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/TASKS.md`](docs/TASKS.md) for details.
