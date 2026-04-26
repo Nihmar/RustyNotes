@@ -1,3 +1,8 @@
+/// Lazy reading view — splits markdown into sections (by h1/h2 headings) and renders
+/// each section on-demand using `IntersectionObserver` for performance with large documents.
+///
+/// This is used by `LazyReadingView.svelte` to progressively render content as the user scrolls.
+
 import { marked } from 'marked';
 import '$lib/editor-engine/reading-view';
 

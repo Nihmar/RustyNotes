@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type { Notebook, NotebookInfo, NoteMeta, SearchResult, TagInfo } from './types';
 
 // ── Notebook Commands ──
+// These wrap the Rust backend Tauri commands for notebook lifecycle management.
 
 export async function createNotebook(name: string, path: string): Promise<Notebook> {
     return invoke('create_notebook', { name, path });

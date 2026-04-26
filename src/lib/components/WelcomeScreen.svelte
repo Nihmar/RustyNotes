@@ -1,4 +1,7 @@
 <script lang="ts">
+    /// Welcome screen — shown when no notebook is active.
+    /// Provides buttons to open an existing notebook folder or create a new one,
+    /// plus a list of recently opened notebooks for quick access.
     import { onMount } from 'svelte';
     import { getRecentNotebooks, isLoading, setActive, setLoading, setRecent } from '$lib/stores/notebook.svelte';
     import { createNotebook, openNotebook, listNotebooks } from '$lib/commands';

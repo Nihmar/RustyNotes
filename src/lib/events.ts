@@ -4,6 +4,10 @@ import { getActiveNotebook } from '$lib/stores/notebook.svelte';
 import { getTabByPath } from '$lib/stores/tabs.svelte';
 import { listNotes, readNote } from '$lib/commands';
 
+/// Listens for file system events from the Rust backend (`notify`-based watcher).
+/// - `note-created`: refreshes the file tree
+/// - `note-modified`: refreshes the tree and reloads the open tab if it matches
+/// - `note-deleted`: refreshes the tree
 export async function setupFileWatcher() {
     await listen<{ path: string; event: string }>('note-created', async () => {
         const notes = await listNotes();

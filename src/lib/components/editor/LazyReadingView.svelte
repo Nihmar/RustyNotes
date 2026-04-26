@@ -1,4 +1,7 @@
 <script lang="ts">
+    /// Lazy reading view — progressively renders markdown sections as they scroll into view.
+    /// Uses `IntersectionObserver` with a generous root margin (1200px) to pre-render content
+    /// before the user reaches it. Wiki-links in the rendered output are clickable.
     import { onMount } from 'svelte';
     import {
         splitMarkdownIntoSections,

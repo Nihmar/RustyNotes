@@ -1,4 +1,7 @@
 <script lang="ts">
+    /// File tree sidebar panel — displays notebook notes organized in a folder hierarchy.
+    /// Supports expand/collapse, context menus (rename, delete, create), and note selection.
+    /// Uses a recursive snippet for rendering nested tree nodes.
     import { onMount } from 'svelte';
     import { listNotes, readNote, deleteNote, renameNote, createNote } from '$lib/commands';
     import { buildFileTree } from '$lib/commands';

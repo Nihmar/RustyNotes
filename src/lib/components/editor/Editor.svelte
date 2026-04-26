@@ -1,4 +1,11 @@
 <script lang="ts">
+    /// CodeMirror editor component with support for three modes:
+    /// - **edit**: raw markdown editing with syntax highlighting
+    /// - **live-preview**: WYSIWYG-like editing via `codemirror-live-markdown`
+    /// - **reading**: rendered HTML reading view with lazy section rendering
+    ///
+    /// Manages CodeMirror lifecycle (init, destroy, mode switching, theme switching)
+    /// and dispatches content changes to the parent via the `onchange` callback.
     import { onMount, onDestroy } from 'svelte';
     import { EditorView } from '@codemirror/view';
     import { EditorState, Compartment } from '@codemirror/state';

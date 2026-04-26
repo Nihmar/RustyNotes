@@ -1,5 +1,6 @@
 import type { EditorMode } from '$lib/types';
 
+/// A single open editor tab, identified by its file path.
 export interface Tab {
     path: string;
     title: string;
@@ -7,6 +8,7 @@ export interface Tab {
     mode: EditorMode;
 }
 
+/// Per-tab scroll position, preserved independently for edit and reading modes.
 export interface ScrollState {
     edit: number;
     reading: number | null;

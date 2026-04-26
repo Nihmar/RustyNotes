@@ -1,5 +1,7 @@
 import type { SearchResult } from '$lib/types';
 
+/// Svelte 5 runes store for search state.
+/// Tracks the current search query, results list, and loading indicator.
 const state = $state({
     query: '',
     results: [] as SearchResult[],

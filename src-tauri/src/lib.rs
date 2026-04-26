@@ -1,3 +1,4 @@
+// Rust module declarations — each corresponds to a backend capability.
 mod fs_watcher;
 mod notebook;
 mod notes;
@@ -9,6 +10,8 @@ use std::path::{Path, PathBuf};
 use state::ManagedState;
 use tauri::Manager;
 
+/// Recursively searches a directory for a file by name.
+/// Used by the `vault://` protocol handler to resolve wiki-link image targets.
 fn find_file_in_dir(root: &Path, filename: &str) -> Option<PathBuf> {
     for entry in walkdir::WalkDir::new(root)
         .into_iter()
@@ -21,11 +24,19 @@ fn find_file_in_dir(root: &Path, filename: &str) -> Option<PathBuf> {
     None
 }
 
+/// Simple greeting command, used for testing Tauri IPC connectivity.
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+/// Sets up and runs the Tauri application.
+///
+/// Registers:
+/// - Tauri plugins: `opener` (open URLs/files), `dialog` (native file dialogs)
+/// - Managed state: `AppState` wrapped in `Mutex`
+/// - `vault://` protocol handler for serving embedded images and files
+/// - All Tauri commands (notebook CRUD, note CRUD, search, tags)
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()

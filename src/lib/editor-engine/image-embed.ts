@@ -1,3 +1,9 @@
+/// Live image embedding for the CodeMirror editor.
+///
+/// Replaces `![[image.ext]]` wiki-style image references with rendered `<img>` elements
+/// served through the `vault://` protocol handler. Images are shown inline when the cursor
+/// is not touching the embed; raw source text is shown when being edited.
+
 import {
     Decoration,
     EditorView,
@@ -8,6 +14,7 @@ import {
 import type { DecorationSet } from '@codemirror/view';
 import { EditorState, RangeSetBuilder } from '@codemirror/state';
 
+/// Widget that renders an embedded image (from `![[path]]`) using the vault:// protocol.
 class ImageEmbedWidget extends WidgetType {
     constructor(private target: string) { super(); }
 

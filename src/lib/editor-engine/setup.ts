@@ -1,3 +1,11 @@
+/// CodeMirror 6 editor setup and extension configuration.
+///
+/// Provides two extension bundles:
+/// - `createEditorExtensions()` — core edit-mode extensions (syntax highlighting, keybindings, history, etc.)
+/// - `createLivePreviewExtensions()` — live preview mode extensions via `codemirror-live-markdown`
+///
+/// Also includes custom plugins for wiki-links, math rendering, and image embeds.
+
 import {
     keymap,
     lineNumbers,
@@ -43,6 +51,9 @@ import {
 import { mathExtensions } from './math-live';
 import { imageEmbedExtensions } from './image-embed';
 
+/// Creates the base set of CodeMirror extensions for edit mode.
+/// Includes line numbers, history, folding, bracket matching, markdown language support,
+/// wiki-link highlighting, and default keybindings.
 export function createEditorExtensions(): Extension[] {
     return [
         lineNumbers(),
@@ -83,8 +94,11 @@ export function createEditorExtensions(): Extension[] {
     ];
 }
 
+/// Decoration for visible list markers in live preview mode.
 const visibleListMark = Decoration.mark({ class: 'cm-lp-list-visible' });
 
+/// Custom view plugin that applies visible list marker decorations in the CodeMirror editor.
+/// Iterates the syntax tree and marks `ListMark` nodes for rendering in live preview mode.
 const listMarkPlugin = ViewPlugin.fromClass(class {
     decorations: DecorationSet;
 
@@ -113,6 +127,8 @@ const listMarkPlugin = ViewPlugin.fromClass(class {
     decorations: (v) => v.decorations
 });
 
+/// Creates extensions for live preview mode on top of base edit extensions.
+/// Enables WYSIWYG-like markdown rendering (collapsible formatting, table rendering, etc.).
 export function createLivePreviewExtensions(): Extension[] {
     return [
         collapseOnSelectionFacet.of(true),

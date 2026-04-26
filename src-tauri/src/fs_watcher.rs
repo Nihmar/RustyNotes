@@ -4,6 +4,10 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
+/// Debounced file system watcher for a notebook directory.
+/// Watches for `.md` and image file changes and emits Tauri events (`note-created`,
+/// `note-modified`, `note-deleted`) to the frontend. Uses polling mode for cross-platform
+/// reliability with a 100ms debounce window.
 pub struct FsWatcher {
     watcher: Option<notify::RecommendedWatcher>,
     stop_tx: Option<mpsc::Sender<()>>,
@@ -105,6 +109,8 @@ impl FsWatcher {
         Ok(())
     }
 
+    /// Stops the watcher by dropping the sender and watcher handles.
+    /// The background thread exits when the stop channel is dropped.
     pub fn stop(&mut self) {
         self.stop_tx = None;
         self.watcher = None;

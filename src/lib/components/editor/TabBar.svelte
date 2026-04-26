@@ -1,4 +1,6 @@
 <script lang="ts">
+    /// Tab bar — displays open editor tabs with dirty indicators and close buttons.
+    /// Supports closing individual tabs or all tabs at once.
     import { getTabs, getActiveTabIndex, openTab, closeTab, setActive } from '$lib/stores/tabs.svelte';
 
     function handleClose(index: number, e: MouseEvent) {

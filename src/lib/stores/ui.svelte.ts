@@ -1,5 +1,7 @@
 import type { EditorMode } from '$lib/types';
 
+/// Svelte 5 runes store for UI-level state.
+/// Manages sidebar visibility, active editor mode, and the color theme.
 const state = $state({
     sidebarVisible: true,
     editorMode: 'edit' as EditorMode,

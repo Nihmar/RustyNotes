@@ -1,4 +1,7 @@
 <script lang="ts">
+    /// Editor pane — the main content area component.
+    /// Orchestrates tab management, mode switching, autosave, and theme toggling.
+    /// Bridges the editor store with the Editor component and the Rust backend.
     import { untrack } from 'svelte';
     import Editor from './Editor.svelte';
     import ModeSwitcher from './ModeSwitcher.svelte';

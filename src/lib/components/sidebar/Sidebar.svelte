@@ -1,4 +1,6 @@
 <script lang="ts">
+    /// Sidebar container — wraps the notebook selector, panel tabs (Files/Search/Tags),
+    /// and the active panel content. Supports collapsing and responsive hamburger menu.
     import NotebookSelector from './NotebookSelector.svelte';
     import FileTree from './FileTree.svelte';
     import SearchPanel from './SearchPanel.svelte';

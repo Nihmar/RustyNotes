@@ -1,4 +1,5 @@
 <script lang="ts">
+    /// Mode switcher toolbar — buttons to toggle between Edit, Preview, and Reading modes.
     import { getEditorMode, setEditorMode } from '$lib/stores/ui.svelte';
     import type { EditorMode } from '$lib/types';
 

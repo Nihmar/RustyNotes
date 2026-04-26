@@ -1,3 +1,6 @@
+/// Dark color theme for the CodeMirror editor (default).
+/// Provides syntax highlighting styles for markdown elements (headings, links, code, etc.).
+
 import { EditorView } from '@codemirror/view';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';

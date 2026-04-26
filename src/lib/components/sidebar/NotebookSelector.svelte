@@ -1,4 +1,7 @@
 <script lang="ts">
+    /// Notebook selector sidebar panel.
+    /// Shows the active notebook, a list of recent notebooks for quick switching,
+    /// and actions to open a folder or create a new notebook.
     import { onMount } from 'svelte';
     import { getActiveNotebook, getRecentNotebooks, isLoading, setActive, setRecent, setLoading } from '$lib/stores/notebook.svelte';
     import { listNotebooks, openNotebook, createNotebook } from '$lib/commands';

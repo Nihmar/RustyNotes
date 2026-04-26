@@ -7,6 +7,7 @@ use walkdir::WalkDir;
 
 use crate::state::ManagedState;
 
+/// Helper: returns the absolute root path of the active notebook, or an error if none is open.
 fn get_notebook_root(state: &ManagedState) -> Result<PathBuf, String> {
     let app_state = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
     match app_state.active_notebook_path.as_ref() {
@@ -15,6 +16,8 @@ fn get_notebook_root(state: &ManagedState) -> Result<PathBuf, String> {
     }
 }
 
+/// Resolves a possibly-relative path against the notebook root.
+/// Absolute paths are returned as-is.
 fn resolve_path(state: &ManagedState, path: &str) -> Result<PathBuf, String> {
     let p = Path::new(path);
     if p.is_absolute() {
@@ -24,6 +27,7 @@ fn resolve_path(state: &ManagedState, path: &str) -> Result<PathBuf, String> {
     Ok(root.join(path))
 }
 
+/// Metadata for a single markdown note, returned to the frontend for display in the file tree.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NoteMeta {
     pub title: String,
@@ -33,6 +37,7 @@ pub struct NoteMeta {
     pub tags: Vec<String>,
 }
 
+/// Derives a display title from the file name (stem of the path).
 fn title_from_path(path: &Path) -> String {
     path.file_stem()
         .and_then(|s| s.to_str())
@@ -40,6 +45,7 @@ fn title_from_path(path: &Path) -> String {
         .to_string()
 }
 
+/// Extracts unique tags (words prefixed with `#`) from note content.
 fn extract_tags(content: &str) -> Vec<String> {
     let re = Regex::new(r"#([\w/-]+)").unwrap();
     let mut tags: Vec<String> = re
@@ -51,6 +57,7 @@ fn extract_tags(content: &str) -> Vec<String> {
     tags
 }
 
+/// Builds a `NoteMeta` struct from a file path, relative to the notebook root.
 fn meta_from_path(path: &Path, root: &Path) -> Option<NoteMeta> {
     let metadata = path.metadata().ok()?;
     let modified = metadata
@@ -85,6 +92,9 @@ fn meta_from_path(path: &Path, root: &Path) -> Option<NoteMeta> {
     })
 }
 
+/// Lists all `.md` files under `dir` (relative to the notebook root).
+/// Returns metadata for each note (title, path, modified time, size, tags).
+/// Results are sorted alphabetically by title.
 #[tauri::command]
 pub fn list_notes(dir: Option<String>, state: State<'_, ManagedState>) -> Result<Vec<NoteMeta>, String> {
     let root = get_notebook_root(&state)?;
@@ -118,6 +128,7 @@ pub fn list_notes(dir: Option<String>, state: State<'_, ManagedState>) -> Result
     Ok(notes)
 }
 
+/// Reads the raw content of a note file as a string.
 #[tauri::command]
 pub fn read_note(path: String, state: State<'_, ManagedState>) -> Result<String, String> {
     let resolved = resolve_path(&state, &path)?;
@@ -125,6 +136,8 @@ pub fn read_note(path: String, state: State<'_, ManagedState>) -> Result<String,
         .map_err(|e| format!("Failed to read note {}: {}", resolved.display(), e))
 }
 
+/// Writes content to a note file. Uses an atomic write pattern
+/// (write to `.md.tmp` then rename) to prevent data corruption on crash.
 #[tauri::command]
 pub fn write_note(path: String, content: String, state: State<'_, ManagedState>) -> Result<(), String> {
     let resolved = resolve_path(&state, &path)?;
@@ -137,6 +150,8 @@ pub fn write_note(path: String, content: String, state: State<'_, ManagedState>)
     Ok(())
 }
 
+/// Creates a new markdown note with the given title in the specified directory.
+/// Initial content is a level-1 heading. Returns metadata for the created note.
 #[tauri::command]
 pub fn create_note(dir: String, title: String, state: State<'_, ManagedState>) -> Result<NoteMeta, String> {
     let root = get_notebook_root(&state)?;
@@ -156,6 +171,7 @@ pub fn create_note(dir: String, title: String, state: State<'_, ManagedState>) -
     meta_from_path(&file_path, &root).ok_or_else(|| "Failed to read created note metadata".to_string())
 }
 
+/// Permanently deletes a note file from disk.
 #[tauri::command]
 pub fn delete_note(path: String, state: State<'_, ManagedState>) -> Result<(), String> {
     let resolved = resolve_path(&state, &path)?;
@@ -165,6 +181,7 @@ pub fn delete_note(path: String, state: State<'_, ManagedState>) -> Result<(), S
     fs::remove_file(&resolved).map_err(|e| format!("Failed to delete note: {}", e))
 }
 
+/// Renames a note file (changes the stem, keeps the `.md` extension).
 #[tauri::command]
 pub fn rename_note(path: String, new_name: String, state: State<'_, ManagedState>) -> Result<(), String> {
     let resolved = resolve_path(&state, &path)?;
@@ -186,6 +203,8 @@ pub fn rename_note(path: String, new_name: String, state: State<'_, ManagedState
     fs::rename(&resolved, &new_path).map_err(|e| format!("Failed to rename note: {}", e))
 }
 
+/// Moves (or renames) a note from one path to another within the notebook.
+/// Creates the target parent directory if it doesn't exist.
 #[tauri::command]
 pub fn move_note(from: String, to: String, state: State<'_, ManagedState>) -> Result<(), String> {
     let from_path = resolve_path(&state, &from)?;

@@ -1,4 +1,6 @@
 <script lang="ts">
+    /// Tag browser panel — displays all tags across the notebook with their occurrence counts.
+    /// Loads tag data on mount. Clicking a tag is a placeholder for future filtering.
     import { onMount } from 'svelte';
     import { getTags } from '$lib/commands';
     import type { TagInfo } from '$lib/types';

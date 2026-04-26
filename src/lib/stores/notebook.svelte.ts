@@ -1,5 +1,7 @@
 import type { Notebook, NotebookInfo } from '$lib/types';
 
+/// Svelte 5 runes store for notebook-related state.
+/// Tracks the active notebook, recently opened notebooks list, and loading indicator.
 const state = $state({
     activeNotebook: null as Notebook | null,
     recentNotebooks: [] as NotebookInfo[],

@@ -1,5 +1,7 @@
 import type { EditorMode } from '$lib/types';
 
+/// Application settings interface.
+/// Mirrors the frontend-managed preferences (theme, editor mode, sidebar, font, autosave).
 export interface AppSettings {
     theme: 'dark' | 'light';
     defaultEditorMode: EditorMode;
@@ -8,6 +10,7 @@ export interface AppSettings {
     autosaveIntervalMs: number;
 }
 
+/// Default settings applied on first launch or after reset.
 const defaults: AppSettings = {
     theme: 'dark',
     defaultEditorMode: 'edit',

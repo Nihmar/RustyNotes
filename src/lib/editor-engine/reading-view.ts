@@ -1,8 +1,35 @@
+/// Reading view — renders markdown to HTML using `marked` with custom extensions.
+///
+/// Registers custom `marked` extensions (singleton, guarded by a symbol):
+/// - **Wikilinks**: `[[target|display]]` → `<a class="wikilink">`
+/// - **LaTeX blocks**: `$$ ... $$` → KaTeX rendered `<div>`
+/// - **LaTeX inline**: `$ ... $` → KaTeX rendered `<span>`
+/// - **Image embeds**: `![[image.png]]` → `<img>` with `vault://` protocol src
+
 import { marked } from 'marked';
 import katex from 'katex';
 
 interface WikilinkToken {
     type: 'wikilink';
+    raw: string;
+    text: string;
+    target: string;
+}
+
+interface LatexBlockToken {
+    type: 'latexBlock';
+    raw: string;
+    text: string;
+}
+
+interface LatexInlineToken {
+    type: 'latexInline';
+    raw: string;
+    text: string;
+}
+
+interface ImageEmbedToken {
+    type: 'imageEmbed';
     raw: string;
     text: string;
     target: string;

@@ -8,6 +8,7 @@ use walkdir::WalkDir;
 
 use crate::state::ManagedState;
 
+/// A tag name and the number of distinct notes it appears in.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TagInfo {
     pub name: String,
@@ -22,6 +23,8 @@ fn get_notebook_root(state: &ManagedState) -> Result<PathBuf, String> {
     }
 }
 
+/// Scans all `.md` files in the active notebook and returns aggregated tag counts.
+/// Tags inside code blocks (fenced and inline) are excluded from the results.
 #[tauri::command]
 pub fn get_tags(state: State<'_, ManagedState>) -> Result<Vec<TagInfo>, String> {
     let tag_re = Regex::new(r"#([\w/-]+)").map_err(|e| e.to_string())?;

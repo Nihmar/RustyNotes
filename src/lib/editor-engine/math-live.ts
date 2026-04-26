@@ -1,3 +1,13 @@
+/// Live math rendering for the CodeMirror editor.
+///
+/// Provides inline (`$...$`) and display (`$$...$$`) KaTeX math rendering as
+/// editor decorations (widgets). Math is rendered in-place when the cursor is
+/// not touching the expression, and shows the raw source when editing.
+///
+/// Includes two extensions:
+/// - `inlineMathPlugin` — ViewPlugin for `$...$` inline math
+/// - `displayMathField` — StateField for `$$...$$` display math blocks
+
 import {
     Decoration,
     EditorView,
@@ -9,6 +19,8 @@ import type { DecorationSet } from '@codemirror/view';
 import { EditorState, RangeSetBuilder, StateField } from '@codemirror/state';
 import katex from 'katex';
 
+/// KaTeX widget that replaces math source text with rendered output.
+/// Falls back to raw text on render errors.
 class MathWidget extends WidgetType {
     constructor(private source: string, private displayMode: boolean) { super(); }
 

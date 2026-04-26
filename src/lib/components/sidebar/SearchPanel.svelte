@@ -1,4 +1,6 @@
 <script lang="ts">
+    /// Search panel — debounced full-text search across all notes.
+    /// Displays results with highlighted snippets and opens notes on click.
     import { searchNotes, readNote } from '$lib/commands';
     import { getQuery, getResults, isSearching, setQuery, setResults, setSearching } from '$lib/stores/search.svelte';
     import { setActiveNote, setContent, markClean } from '$lib/stores/notes.svelte';

@@ -1,3 +1,10 @@
+/// Wiki-link support for the CodeMirror editor.
+///
+/// Provides:
+/// - Syntax highlighting for `[[wiki-link]]` patterns in the editor
+/// - Parsing (`parseWikilink`) and navigation (`navigateWikilink`)
+/// - Automatic note creation when navigating to non-existent wiki-link targets
+
 import {
     Decoration,
     EditorView,
@@ -56,6 +63,7 @@ import { readNote, createNote } from '$lib/commands';
 import { openNewTab } from '$lib/stores/tabs.svelte';
 import { setActiveNote, setContent, markClean, getNoteTree } from '$lib/stores/notes.svelte';
 import { getEditorMode } from '$lib/stores/ui.svelte';
+import type { NoteMeta } from '$lib/types';
 
 export function parseWikilink(raw: string): { target: string; display: string } {
     const parts = raw.split('|');

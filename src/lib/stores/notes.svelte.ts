@@ -1,5 +1,7 @@
 import type { NoteMeta } from '$lib/types';
 
+/// Svelte 5 runes store for note content and tree state.
+/// Manages the currently active note, its content, dirty flag, and the complete note tree.
 const state = $state({
     noteTree: [] as NoteMeta[],
     activeNotePath: null as string | null,

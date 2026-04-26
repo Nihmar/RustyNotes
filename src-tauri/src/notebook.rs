@@ -5,6 +5,7 @@ use tauri::{AppHandle, State};
 
 use crate::state::ManagedState;
 
+/// Represents an open notebook with its display name, filesystem path, and creation timestamp.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Notebook {
     pub name: String,
@@ -12,18 +13,22 @@ pub struct Notebook {
     pub created: String,
 }
 
+/// Lightweight notebook reference used in the recent notebooks list (no creation timestamp).
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NotebookInfo {
     pub name: String,
     pub path: String,
 }
 
+/// Per-notebook config stored as `.rustynotes/config.json` inside the notebook directory.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct NotebookConfig {
     name: String,
     created: String,
 }
 
+/// Global application settings persisted to `~/.config/rustynotes/settings.json`.
+/// Includes recent notebook history and user preferences (theme, editor mode, sidebar visibility, etc.).
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 struct GlobalSettings {
     #[serde(default)]
@@ -40,6 +45,8 @@ struct GlobalSettings {
     autosave_interval_ms: Option<u64>,
 }
 
+/// Returns the platform-specific config directory (`~/.config/rustynotes` on Unix,
+/// `%APPDATA%/rustynotes` on Windows).
 fn config_dir() -> PathBuf {
     #[cfg(target_os = "windows")]
     {
@@ -57,6 +64,7 @@ fn global_settings_path() -> PathBuf {
     config_dir().join("settings.json")
 }
 
+/// Loads global settings from disk, returning defaults if the file doesn't exist.
 fn load_global_settings() -> GlobalSettings {
     let path = global_settings_path();
     if path.exists() {
@@ -67,6 +75,7 @@ fn load_global_settings() -> GlobalSettings {
     }
 }
 
+/// Persists global settings to disk, creating the config directory if needed.
 fn save_global_settings(settings: &GlobalSettings) {
     let path = global_settings_path();
     if let Some(parent) = path.parent() {
@@ -77,6 +86,9 @@ fn save_global_settings(settings: &GlobalSettings) {
     }
 }
 
+/// Creates a new notebook at the given path.
+/// Initializes the `.rustynotes` config directory, writes notebook metadata,
+/// updates the recent notebooks list, and starts the file system watcher.
 #[tauri::command]
 pub fn create_notebook(name: String, path: String, state: State<'_, ManagedState>, app_handle: AppHandle) -> Result<Notebook, String> {
     let nb_path = PathBuf::from(&path);
@@ -126,6 +138,8 @@ pub fn create_notebook(name: String, path: String, state: State<'_, ManagedState
     Ok(notebook)
 }
 
+/// Opens an existing notebook by reading its `.rustynotes/config.json`.
+/// Updates the recent notebooks list and starts the file system watcher.
 #[tauri::command]
 pub fn open_notebook(path: String, state: State<'_, ManagedState>, app_handle: AppHandle) -> Result<Notebook, String> {
     let nb_path = PathBuf::from(&path);
@@ -167,18 +181,21 @@ pub fn open_notebook(path: String, state: State<'_, ManagedState>, app_handle: A
     Ok(notebook)
 }
 
+/// Returns the list of recently opened notebooks from global settings.
 #[tauri::command]
 pub fn list_notebooks() -> Result<Vec<NotebookInfo>, String> {
     let settings = load_global_settings();
     Ok(settings.recent_notebooks)
 }
 
+/// Returns the path of the currently active notebook, if any.
 #[tauri::command]
 pub fn get_active_notebook_path(state: State<'_, ManagedState>) -> Result<Option<String>, String> {
     let app_state = state.lock().map_err(|e| format!("Failed to lock state: {}", e))?;
     Ok(app_state.active_notebook_path.clone())
 }
 
+/// Closes the active notebook: clears the path from state and stops the watcher.
 #[tauri::command]
 pub fn close_notebook(state: State<'_, ManagedState>) -> Result<(), String> {
     if let Ok(mut app_state) = state.lock() {

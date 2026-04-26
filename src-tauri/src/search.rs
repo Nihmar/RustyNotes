@@ -7,6 +7,8 @@ use walkdir::WalkDir;
 
 use crate::state::ManagedState;
 
+/// A single search match with context snippet and relevance score.
+/// Title matches score higher (100) than body matches (50).
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SearchResult {
     pub path: String,
@@ -23,6 +25,8 @@ fn title_from_path(path: &std::path::Path) -> String {
         .to_string()
 }
 
+/// Builds a highlighted snippet around a match position with 80 characters of context on each side.
+/// The matched text is wrapped in `**` markers for frontend highlighting.
 fn snippet_around(text: &str, pos: usize, query_len: usize) -> String {
     let context = 80;
     let start = if pos > context { pos - context } else { 0 };
@@ -49,6 +53,9 @@ fn get_notebook_root(state: &ManagedState) -> Result<PathBuf, String> {
     }
 }
 
+/// Full-text search across all `.md` files in the active notebook.
+/// Performs a case-insensitive regex search, returning title matches first (relevance=100)
+/// followed by body matches (relevance=50), sorted by relevance then path.
 #[tauri::command]
 pub fn search_notes(query: String, state: State<'_, ManagedState>) -> Result<Vec<SearchResult>, String> {
     if query.trim().is_empty() {

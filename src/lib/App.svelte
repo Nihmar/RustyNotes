@@ -1,4 +1,8 @@
 <script lang="ts">
+    /// Root application component.
+    /// Renders the sidebar and editor when a notebook is active,
+    /// or the welcome screen when no notebook is open.
+    /// Initializes the file system watcher on mount and sets up CSS custom properties for theming.
     import { onMount } from 'svelte';
     import Sidebar from '$lib/components/sidebar/Sidebar.svelte';
     import EditorPane from '$lib/components/editor/EditorPane.svelte';
