@@ -53,7 +53,8 @@ export function wikilinks() {
 // ── Navigation ──
 
 import { readNote, createNote } from '$lib/commands';
-import { openTab, openNewTab } from '$lib/stores/tabs.svelte';
+import { openNewTab } from '$lib/stores/tabs.svelte';
+import { setActiveNote, setContent, markClean, getNoteTree } from '$lib/stores/notes.svelte';
 import { getEditorMode } from '$lib/stores/ui.svelte';
 
 export function parseWikilink(raw: string): { target: string; display: string } {
@@ -73,22 +74,40 @@ export function wikilinkTitle(target: string): string {
 
 export async function navigateWikilink(rawText: string, newTab: boolean) {
     const { target } = parseWikilink(rawText);
-    const targetPath = wikilinkToPath(target);
     const title = wikilinkTitle(target);
     const mode = getEditorMode();
 
+    // Search the note tree for an existing note whose title matches (case-insensitive).
+    // This handles notes in subfolders and case mismatches — without this, a wikilink
+    // like [[NoteB]] would always resolve to the flat path "NoteB.md", missing notes in
+    // subfolders and creating a new blank note instead of switching to the existing tab.
+    const notes = getNoteTree();
+    const match = notes.find(n => n.title.toLowerCase() === title.toLowerCase());
+
+    const targetPath = match ? match.path : wikilinkToPath(target);
+    const finalTitle = match ? match.title : title;
+
+    let content: string;
     try {
-        await readNote(targetPath);
+        content = await readNote(targetPath);
     } catch {
         const parentDir = targetPath.includes('/')
             ? targetPath.substring(0, targetPath.lastIndexOf('/'))
             : '.';
-        await createNote(parentDir, title);
+        const meta = await createNote(parentDir, finalTitle);
+        content = `# ${meta.title}\n\n`;
     }
 
+    // Update the notes store — Effect 1 (EditorPane) will pick this up and open a tab.
+    // This mirrors exactly how FileTree.handleOpenNote works.
+    setActiveNote(targetPath);
+    setContent(content);
+    markClean();
+
+    // For ctrl+click / cmd+click: also open a dedicated new tab.
+    // Effect 1 will still call openTab on the same path, which becomes a no-op
+    // since openNewTab already created the tab.
     if (newTab) {
-        openNewTab({ path: targetPath, title, isDirty: false, mode });
-    } else {
-        openTab({ path: targetPath, title, isDirty: false, mode });
+        openNewTab({ path: targetPath, title: finalTitle, isDirty: false, mode });
     }
 }
