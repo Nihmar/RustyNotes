@@ -38,6 +38,7 @@ import {
     editorTheme,
     mouseSelectingField,
     collapseOnSelectionFacet,
+    tableField,
 } from 'codemirror-live-markdown';
 import { mathExtensions } from './math-live';
 import { imageEmbedExtensions } from './image-embed';
@@ -118,6 +119,7 @@ export function createLivePreviewExtensions(): Extension[] {
         livePreviewPlugin,
         markdownStylePlugin,
         editorTheme,
+        tableField,
         listMarkPlugin,
         ...mathExtensions(),
         ...imageEmbedExtensions(),
