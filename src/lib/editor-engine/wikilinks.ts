@@ -72,17 +72,23 @@ export function wikilinkTitle(target: string): string {
     return target.split('/').pop()?.replace('.md', '') ?? 'Untitled';
 }
 
+function findNoteByTitle(notes: NoteMeta[], title: string): NoteMeta | null {
+    const targetLower = title.toLowerCase();
+    for (const note of notes) {
+        if (note.title.toLowerCase() === targetLower) {
+            return note;
+        }
+    }
+    return null;
+}
+
 export async function navigateWikilink(rawText: string, newTab: boolean) {
     const { target } = parseWikilink(rawText);
     const title = wikilinkTitle(target);
     const mode = getEditorMode();
 
-    // Search the note tree for an existing note whose title matches (case-insensitive).
-    // This handles notes in subfolders and case mismatches — without this, a wikilink
-    // like [[NoteB]] would always resolve to the flat path "NoteB.md", missing notes in
-    // subfolders and creating a new blank note instead of switching to the existing tab.
     const notes = getNoteTree();
-    const match = notes.find(n => n.title.toLowerCase() === title.toLowerCase());
+    const match = findNoteByTitle(notes, title);
 
     const targetPath = match ? match.path : wikilinkToPath(target);
     const finalTitle = match ? match.title : title;

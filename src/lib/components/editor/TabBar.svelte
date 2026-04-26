@@ -16,17 +16,19 @@
 {#if getTabs().length > 0}
     <div class="tab-bar">
         {#each getTabs() as tab, i}
-            <button
-                class="tab"
-                class:active={i === getActiveTabIndex()}
-                onclick={() => setActive(i)}
-            >
-                <span class="tab-title">{tab.title}</span>
-                {#if tab.isDirty}
-                    <span class="tab-dirty">●</span>
-                {/if}
-                <span class="tab-close" onclick={(e) => handleClose(i, e)}>×</span>
-            </button>
+            <div class="tab-row">
+                <button
+                    class="tab"
+                    class:active={i === getActiveTabIndex()}
+                    onclick={() => setActive(i)}
+                >
+                    <span class="tab-title">{tab.title}</span>
+                    {#if tab.isDirty}
+                        <span class="tab-dirty">●</span>
+                    {/if}
+                </button>
+                <button class="tab-close" onclick={(e) => handleClose(i, e)}>×</button>
+            </div>
         {/each}
         {#if getTabs().length > 1}
             <button class="tab close-all" onclick={handleCloseAll} title="Close all tabs">
@@ -45,6 +47,10 @@
         scrollbar-width: none;
     }
     .tab-bar::-webkit-scrollbar { display: none; }
+    .tab-row {
+        display: flex;
+        align-items: center;
+    }
     .tab {
         display: flex;
         align-items: center;
@@ -76,6 +82,7 @@
         font-size: 8px;
     }
     .tab-close {
+        cursor: pointer;
         opacity: 0.5;
         font-size: 14px;
         padding: 0 2px;
