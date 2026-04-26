@@ -26,6 +26,22 @@
     let view: EditorView | undefined = $state();
     let isExternalUpdate = false;
 
+    // Reading view scroll container and scroll tracking
+    let readingViewEl: HTMLDivElement | undefined = $state();
+    let cmScrollRatio = 0;
+    let readingScrollRatio: number | null = null;
+    let previousMode: EditorMode = mode;
+
+    function getScrollRatio(el: HTMLElement): number {
+        const scrollable = el.scrollHeight - el.clientHeight;
+        return scrollable > 0 ? el.scrollTop / scrollable : 0;
+    }
+
+    function setScrollRatio(el: HTMLElement, ratio: number) {
+        const scrollable = el.scrollHeight - el.clientHeight;
+        if (scrollable > 0) el.scrollTop = ratio * scrollable;
+    }
+
     const livePreviewExtensionsCompartment = new Compartment();
     const themeCompartment = new Compartment();
 
@@ -76,6 +92,9 @@
         });
 
         view.contentDOM.addEventListener('mousedown', onMouseDown);
+        view.scrollDOM.addEventListener('scroll', () => {
+            cmScrollRatio = getScrollRatio(view!.scrollDOM);
+        });
         document.addEventListener('mouseup', onMouseUp);
     });
 
@@ -136,14 +155,46 @@
                     insert: content
                 }
             });
+            readingScrollRatio = null;
+            cmScrollRatio = 0;
         }
+    });
+
+    // Track reading view scroll position
+    $effect(() => {
+        const el = readingViewEl;
+        if (!el) return;
+        const handler = () => { readingScrollRatio = getScrollRatio(el); };
+        el.addEventListener('scroll', handler);
+        return () => el.removeEventListener('scroll', handler);
+    });
+
+    // Preserve scroll position when switching between edit/preview and reading
+    $effect(() => {
+        const currentMode = mode;
+        if (previousMode === currentMode) return;
+
+        if (currentMode === 'reading') {
+            requestAnimationFrame(() => {
+                if (readingViewEl) {
+                    const target = readingScrollRatio !== null ? readingScrollRatio : cmScrollRatio;
+                    setScrollRatio(readingViewEl, target);
+                }
+            });
+        } else if (previousMode === 'reading') {
+            requestAnimationFrame(() => {
+                if (view) setScrollRatio(view.scrollDOM, cmScrollRatio);
+            });
+        }
+
+        previousMode = currentMode;
     });
 </script>
 
 <div class="editor-wrapper" class:lp-active={mode === 'live-preview'}>
     <div class="cm-container" class:cm-hidden={mode === 'reading'} bind:this={cmContainer}></div>
     {#if mode === 'reading'}
-        <div class="reading-view">
+        <div class="reading-view" bind:this={readingViewEl}>
             <LazyReadingView {content} />
         </div>
     {/if}
