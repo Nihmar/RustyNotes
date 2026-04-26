@@ -59,8 +59,17 @@ impl FsWatcher {
                             .map(|p| p.to_string_lossy().to_string())
                             .unwrap_or_default();
 
-                        // Only care about .md files
-                        if !path_str.ends_with(".md") {
+                        // Watch .md files and common image formats
+                        let lower = path_str.to_lowercase();
+                        let is_md = lower.ends_with(".md");
+                        let is_image = lower.ends_with(".png")
+                            || lower.ends_with(".jpg")
+                            || lower.ends_with(".jpeg")
+                            || lower.ends_with(".gif")
+                            || lower.ends_with(".svg")
+                            || lower.ends_with(".webp")
+                            || lower.ends_with(".bmp");
+                        if !is_md && !is_image {
                             continue;
                         }
 

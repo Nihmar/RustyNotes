@@ -40,6 +40,7 @@ import {
     collapseOnSelectionFacet,
 } from 'codemirror-live-markdown';
 import { mathExtensions } from './math-live';
+import { imageEmbedExtensions } from './image-embed';
 
 export function createEditorExtensions(): Extension[] {
     return [
@@ -119,6 +120,7 @@ export function createLivePreviewExtensions(): Extension[] {
         editorTheme,
         listMarkPlugin,
         ...mathExtensions(),
+        ...imageEmbedExtensions(),
     ];
 }
 

@@ -399,4 +399,30 @@
         padding: 2px 6px;
         border-radius: 3px;
     }
+
+    :global(.cm-image-embed-wrapper) {
+        display: block;
+        margin: 8px 0;
+    }
+    :global(.cm-image-embed-img) {
+        max-width: 100%;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    :global(.cm-image-embed-img:hover) {
+        opacity: 0.9;
+    }
+    :global(.cm-image-embed-error) {
+        filter: grayscale(1);
+        opacity: 0.5;
+        border: 1px dashed var(--border-color, #444);
+        min-width: 48px;
+        min-height: 48px;
+    }
+
+    :global(.reading-view img.image-embed) {
+        max-width: 100%;
+        border-radius: 4px;
+        margin: 8px 0;
+    }
 </style>

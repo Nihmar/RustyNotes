@@ -16,7 +16,7 @@ function decorateWikilinks(view: EditorView): DecorationSet {
 
     // Simple regex approach for wikilinks
     const text = doc.toString();
-    const regex = /\[\[([^\]]+)\]\]/g;
+    const regex = /(?<!!)\[\[([^\]]+)\]\]/g;
     let match;
 
     while ((match = regex.exec(text)) !== null) {

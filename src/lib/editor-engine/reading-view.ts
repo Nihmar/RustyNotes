@@ -20,12 +20,24 @@ interface LatexInlineToken {
     text: string;
 }
 
+interface ImageEmbedToken {
+    type: 'imageEmbed';
+    raw: string;
+    target: string;
+}
+
 function wikilinkExtension() {
     return {
         name: 'wikilink',
         level: 'inline' as const,
         start(src: string) {
-            return src.indexOf('[[');
+            const idx = src.indexOf('[[');
+            if (idx === -1) return -1;
+            if (idx > 0 && src[idx - 1] === '!') {
+                const next = src.indexOf('[[', idx + 2);
+                return next >= 0 ? next : -1;
+            }
+            return idx;
         },
         tokenizer(src: string) {
             const match = src.match(/^\[\[([^\]]+)\]\]/);
@@ -101,10 +113,35 @@ function latexInlineExtension() {
     };
 }
 
+function imageEmbedExtension() {
+    return {
+        name: 'imageEmbed',
+        level: 'inline' as const,
+        start(src: string) {
+            return src.indexOf('![[');
+        },
+        tokenizer(src: string) {
+            const match = src.match(/^!\[\[([^\]]+)\]\]/);
+            if (match) {
+                const inner = match[1].trim();
+                const target = inner.includes('|') ? inner.split('|')[0].trim() : inner;
+                return {
+                    type: 'imageEmbed',
+                    raw: match[0],
+                    target
+                };
+            }
+        },
+        renderer(token: ImageEmbedToken) {
+            return `<img class="image-embed" src="vault://localhost/${encodeURIComponent(token.target)}" alt="${token.target}" loading="lazy">`;
+        }
+    };
+}
+
 const EXTENSIONS_REGISTERED = Symbol.for('rustynotes.marked.extensions');
 
 if (!(globalThis as Record<string, unknown>)[EXTENSIONS_REGISTERED as unknown as string]) {
-    marked.use({ extensions: [wikilinkExtension(), latexBlockExtension(), latexInlineExtension()] });
+    marked.use({ extensions: [imageEmbedExtension(), wikilinkExtension(), latexBlockExtension(), latexInlineExtension()] });
     (globalThis as Record<string, unknown>)[EXTENSIONS_REGISTERED as unknown as string] = true;
 }
 
