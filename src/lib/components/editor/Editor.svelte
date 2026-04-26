@@ -202,7 +202,11 @@
                 isExternalUpdate = true;
             }
 
-            view.dispatch(tr);
+            if (previousMode === 'reading' && currentMode === 'live-preview') {
+                requestAnimationFrame(() => view?.dispatch(tr));
+            } else {
+                view.dispatch(tr);
+            }
         }
 
         // Restore scroll position
