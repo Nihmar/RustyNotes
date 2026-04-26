@@ -8,6 +8,7 @@
     import { setMouseSelecting } from 'codemirror-live-markdown';
     import { darkExtensions } from '$lib/editor-engine/themes/dark';
     import { lightExtensions } from '$lib/editor-engine/themes/light';
+    import { getActiveTab, getScrollState, setScrollEdit, setScrollReading } from '$lib/stores/tabs.svelte';
     import 'katex/dist/katex.min.css';
 
     let {
@@ -28,9 +29,8 @@
 
     // Reading view scroll container and scroll tracking
     let readingViewEl: HTMLDivElement | undefined = $state();
-    let cmScrollRatio = 0;
-    let readingScrollRatio: number | null = null;
     let previousMode: EditorMode = mode;
+    let pendingContent: string | null = null;
 
     function getScrollRatio(el: HTMLElement): number {
         const scrollable = el.scrollHeight - el.clientHeight;
@@ -40,6 +40,10 @@
     function setScrollRatio(el: HTMLElement, ratio: number) {
         const scrollable = el.scrollHeight - el.clientHeight;
         if (scrollable > 0) el.scrollTop = ratio * scrollable;
+    }
+
+    function pathForContent(): string {
+        return getActiveTab()?.path ?? '';
     }
 
     const livePreviewExtensionsCompartment = new Compartment();
@@ -93,7 +97,8 @@
 
         view.contentDOM.addEventListener('mousedown', onMouseDown);
         view.scrollDOM.addEventListener('scroll', () => {
-            cmScrollRatio = getScrollRatio(view!.scrollDOM);
+            const p = pathForContent();
+            if (p) setScrollEdit(p, getScrollRatio(view!.scrollDOM));
         });
         document.addEventListener('mouseup', onMouseUp);
     });
@@ -147,6 +152,12 @@
         if (!view) return;
         const currentDoc = view.state.doc.toString();
         if (content !== currentDoc) {
+            if (mode === 'reading') {
+                // Defer content sync when CM is hidden — avoids loading content
+                // into a hidden editor only to re-process it when live preview activates.
+                pendingContent = content;
+                return;
+            }
             isExternalUpdate = true;
             view.dispatch({
                 changes: {
@@ -155,8 +166,6 @@
                     insert: content
                 }
             });
-            readingScrollRatio = null;
-            cmScrollRatio = 0;
         }
     });
 
@@ -164,26 +173,51 @@
     $effect(() => {
         const el = readingViewEl;
         if (!el) return;
-        const handler = () => { readingScrollRatio = getScrollRatio(el); };
+        const handler = () => {
+            const p = pathForContent();
+            if (p) setScrollReading(p, getScrollRatio(el));
+        };
         el.addEventListener('scroll', handler);
         return () => el.removeEventListener('scroll', handler);
     });
 
-    // Preserve scroll position when switching between edit/preview and reading
+    // Handle mode transitions: reconfigure CM extensions + flush pending content + restore scroll
     $effect(() => {
         const currentMode = mode;
         if (previousMode === currentMode) return;
+        const p = pathForContent();
 
+        // Reconfigure CM extensions for the new mode
+        if (view) {
+            const isLivePreview = currentMode === 'live-preview';
+            const effects = [livePreviewExtensionsCompartment.reconfigure(
+                isLivePreview ? createLivePreviewExtensions() : []
+            )];
+            const tr: { changes?: { from: number; to: number; insert: string }; effects: any } = { effects };
+
+            // Flush any deferred content in the same dispatch as extension reconfigure
+            if (previousMode === 'reading' && pendingContent !== null) {
+                tr.changes = { from: 0, to: view.state.doc.length, insert: pendingContent };
+                pendingContent = null;
+                isExternalUpdate = true;
+            }
+
+            view.dispatch(tr);
+        }
+
+        // Restore scroll position
         if (currentMode === 'reading') {
+            const st = getScrollState(p);
             requestAnimationFrame(() => {
                 if (readingViewEl) {
-                    const target = readingScrollRatio !== null ? readingScrollRatio : cmScrollRatio;
+                    const target = st.reading !== null ? st.reading : st.edit;
                     setScrollRatio(readingViewEl, target);
                 }
             });
         } else if (previousMode === 'reading') {
+            const st = getScrollState(p);
             requestAnimationFrame(() => {
-                if (view) setScrollRatio(view.scrollDOM, cmScrollRatio);
+                if (view) setScrollRatio(view.scrollDOM, st.edit);
             });
         }
 

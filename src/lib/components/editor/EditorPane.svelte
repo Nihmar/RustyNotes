@@ -76,12 +76,6 @@
         });
     });
 
-    // Propagate mode changes directly to the editor ref
-    $effect(() => {
-        const currentMode = getEditorMode();
-        editorRef?.setMode(currentMode);
-    });
-
     // Propagate theme changes to the editor ref
     $effect(() => {
         const currentTheme = getTheme();
