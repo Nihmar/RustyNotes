@@ -33,7 +33,7 @@ export function toggleTheme() {
 }
 
 export function cycleEditorMode() {
-    const modes: EditorMode[] = ['edit', 'live-preview', 'reading'];
+    const modes: EditorMode[] = ['edit', 'reading'];
     const idx = modes.indexOf(state.editorMode);
     state.editorMode = modes[(idx + 1) % modes.length];
 }

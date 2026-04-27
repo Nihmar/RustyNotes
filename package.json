@@ -26,9 +26,7 @@
     "@tauri-apps/plugin-dialog": "^2.7.0",
     "@tauri-apps/plugin-opener": "^2",
     "codemirror": "^6.0.2",
-    "codemirror-live-markdown": "^0.5.1-alpha.1",
-    "katex": "^0.16.45",
-    "marked": "^18.0.2"
+    "katex": "^0.16.45"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",

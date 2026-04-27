@@ -66,6 +66,10 @@ export async function getTags(): Promise<TagInfo[]> {
     return invoke('get_tags');
 }
 
+export async function renderMarkdown(content: string): Promise<string> {
+    return invoke('render_markdown', { content });
+}
+
 // ── Tree Builder ──
 
 import type { TreeNode } from './types';

@@ -2,6 +2,7 @@
 mod fs_watcher;
 mod notebook;
 mod notes;
+mod render;
 mod search;
 mod state;
 mod tags;
@@ -134,6 +135,7 @@ pub fn run() {
             notes::move_note,
             search::search_notes,
             tags::get_tags,
+            render::render_markdown,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

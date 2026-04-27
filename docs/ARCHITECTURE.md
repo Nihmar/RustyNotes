@@ -26,9 +26,8 @@ A **Notebook** is a folder on disk containing `.md` files and subfolders. The ap
 ### Frontend
 - **Framework**: Svelte 5 + SvelteKit (SPA mode via `@sveltejs/adapter-static`)
 - **Editor**: CodeMirror 6 (`codemirror`, `@codemirror/*`, `@lezer/*`)
-- **Live preview**: `codemirror-live-markdown` (third-party package, not custom ViewPlugin)
-- **Markdown rendering**: `marked` (for reading view only; live preview uses `codemirror-live-markdown`)
-- **Math rendering**: KaTeX (`katex`) via custom CM6 ViewPlugin in `math-live.ts`
+- **Markdown rendering**: `pulldown-cmark` (Rust crate) — renders markdown to HTML via a Tauri command
+- **Math rendering**: KaTeX (`katex`) — frontend post-processing after Rust renders HTML
 - **Bundler**: Vite 6
 - **Language**: TypeScript
 
@@ -37,6 +36,7 @@ A **Notebook** is a folder on disk containing `.md` files and subfolders. The ap
 - **File watching**: `notify` crate
 - **File traversal**: `walkdir`
 - **Text search**: `regex` + `walkdir`
+- **Markdown rendering**: `pulldown-cmark`
 - **Date handling**: `chrono`
 - **Gitignore support**: `ignore` crate (for search exclusions)
 - **Serialization**: `serde` + `serde_json` (already in project)
@@ -51,6 +51,7 @@ src-tauri/src/
 ├── lib.rs               # Tauri builder, command registration, AppState
 ├── notebook.rs          # Notebook CRUD + settings persistence
 ├── notes.rs             # Note CRUD (list, read, write, create, delete, rename, move)
+├── render.rs            # Markdown → HTML rendering (pulldown-cmark) with wiki-link/math/image pre-processing
 ├── search.rs            # Full-text search across all notes
 ├── tags.rs              # Tag extraction (#tag regex)
 ├── fs_watcher.rs        # File system watcher (notify crate)
@@ -63,6 +64,7 @@ src-tauri/src/
 notify = { version = "6", features = ["macos_kqueue"] }
 walkdir = "2"
 regex = "1"
+pulldown-cmark = "0.13"
 chrono = { version = "0.4", features = ["serde"] }
 ignore = "0.4"
 ```
@@ -90,11 +92,12 @@ ignore = "0.4"
 | `rename_note` | `path: String, new_name: String` | `Result<()>` |
 | `move_note` | `from: String, to: String` | `Result<()>` |
 
-### Search & Tags
+### Search & Tags & Rendering
 | Command | Args | Returns |
 |---------|------|---------|
 | `search_notes` | `query: String` | `Result<Vec<SearchResult>>` |
 | `get_tags` | — | `Result<Vec<TagInfo>>` |
+| `render_markdown` | `content: String` | `Result<String>` |
 
 ---
 
@@ -143,18 +146,15 @@ src/
 │   │   ├── editor/
 │   │   │   ├── EditorPane.svelte           # Holds TabBar + active Editor
 │   │   │   ├── TabBar.svelte               # Open tabs
-│   │   │   ├── Editor.svelte               # CodeMirror 6 wrapper
-│   │   │   ├── ModeSwitcher.svelte         # Edit / Live Preview / Reading toggle
-│   │   │   └── LazyReadingView.svelte      # Intersection-based lazy rendering for reading mode
+│   │   │   ├── Editor.svelte               # CodeMirror 6 wrapper (edit mode)
+│   │   │   ├── ReadingView.svelte           # Rust-rendered HTML reading view
+│   │   │   └── ModeSwitcher.svelte         # Edit / Reading toggle
 │   │   │
 │   │   └── WelcomeScreen.svelte            # Shown when no notebook is open
 │   │
 │   ├── editor-engine/
-│   │   ├── setup.ts                # CM6 extensions + live-preview extensions (codemirror-live-markdown)
-│   │   ├── reading-view.ts         # Markdown → HTML (using marked) + KaTeX + wikilink rendering
-│   │   ├── lazy-reading-view.ts    # Split markdown into sections + render on scroll
+│   │   ├── setup.ts                # CM6 extensions for edit mode
 │   │   ├── wikilinks.ts            # [[wiki-link]] syntax highlighting in CM6 (decoration only)
-│   │   ├── math-live.ts            # KaTeX math rendering ViewPlugin for CM6
 │   │   └── themes/
 │   │       ├── dark.ts             # Dark theme for CodeMirror
 │   │       └── light.ts            # Light theme for CodeMirror
@@ -174,7 +174,7 @@ src/
 
 ---
 
-## Editor — Three Modes
+## Editor — Two Modes
 
 ### 1. Edit Mode
 - Raw markdown in CodeMirror 6
@@ -182,24 +182,16 @@ src/
 - Wiki-link `[[ ]]` highlighting via custom syntax extension
 - Standard editor features: line numbers, bracket matching, undo/redo, search
 
-### 2. Live Preview Mode
-- **Single unified editor** — no separate preview pane (matches Obsidian behavior)
-- Implemented using the **`codemirror-live-markdown`** npm package (pre-built ViewPlugin, not custom)
-  - Collapses markdown syntax on unfocused lines (`collapseOnSelectionFacet`)
-  - Applies semantic formatting via `markdownStylePlugin` and `editorTheme`
-  - The line containing the cursor stays in raw edit mode
-- Custom `listMarkPlugin` (ViewPlugin in `setup.ts`) ensures list markers remain visible
-- KaTeX math rendered inline via custom ViewPlugin in `math-live.ts`
-- Wiki-links styled via custom syntax extension in `wikilinks.ts` (decoration only; click handler TBD)
-
-### 3. Reading View
+### 2. Reading View
 - CM6 editor hidden, replaced by rendered HTML
-- Uses `marked` to parse markdown → HTML, with custom extensions for `[[wiki-links]]` and KaTeX (`$...$` / `$$...$$`)
-- Lazy rendering via `LazyReadingView.svelte`: splits markdown into heading-delimited sections, only renders sections as they approach the viewport (IntersectionObserver with 1200px root margin)
+- Markdown → HTML rendering done in Rust via `pulldown-cmark` (`render_markdown` Tauri command)
+- Rust pre-processes wiki-links (`[[...]]` → `<a class="wikilink">`), math (`$...$`, `$$...$$` → `<span>/<div>`), and image embeds (`![[...]]` → `<img>`)
+- KaTeX math rendered client-side as post-processing step after HTML insertion
+- Wiki-link click navigation handled client-side via `wikilinks.ts`
 - Scroll position preserved per-tab per-mode when switching modes
 
 ### Mode Switching
-- 3-button toggle in the toolbar (Edit | Live Preview | Reading)
+- 2-button toggle in the toolbar (Edit | Reading)
 - Keyboard shortcut: `Ctrl+E` / `Cmd+E` cycles modes (matches Obsidian)
 - Mode is per-tab (different notes can be in different modes)
 - Default mode configurable in settings
@@ -213,8 +205,8 @@ src/
 │  Svelte Frontend                                          │
 │  ┌──────────┐  ┌──────────┐  ┌────────────────────────┐ │
 │  │ Sidebar  │  │ EditorPane│  │ CodeMirror 6           │ │
-│  │(FileTree,│  │(TabBar,  │  │ (Edit / LivePreview /  │ │
-│  │ Search,  │  │ ModeSw,  │  │  ReadingView)          │ │
+│  │(FileTree,│  │(TabBar,  │  │ (Edit / ReadingView)  │ │
+│  │ Search,  │  │ ModeSw,  │  │                        │ │
 │  │ Tags)    │  │ Editor)  │  │                        │ │
 │  └────┬─────┘  └────┬─────┘  └───────────┬────────────┘ │
 │       │              │                    │               │

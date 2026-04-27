@@ -29,4 +29,5 @@ regex = "1"
 chrono = { version = "0.4", features = ["serde"] }
 ignore = "0.4"
 mime_guess = "2"
+pulldown-cmark = "0.13"
 

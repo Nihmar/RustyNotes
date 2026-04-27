@@ -45,7 +45,7 @@ export interface TreeNode {
 }
 
 /// Editor display modes.
-export type EditorMode = 'edit' | 'live-preview' | 'reading';
+export type EditorMode = 'edit' | 'reading';
 
 /// Plugin interface for extending editor behavior (content transforms, editor init hooks, markdown extensions).
 export interface Plugin {

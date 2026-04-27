@@ -5,7 +5,6 @@
 
     const modes: { value: EditorMode; label: string }[] = [
         { value: 'edit', label: 'Edit' },
-        { value: 'live-preview', label: 'Preview' },
         { value: 'reading', label: 'Reading' }
     ];
 </script>

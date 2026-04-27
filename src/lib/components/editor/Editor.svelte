@@ -1,18 +1,16 @@
 <script lang="ts">
-    /// CodeMirror editor component with support for three modes:
+    /// CodeMirror editor component with support for two modes:
     /// - **edit**: raw markdown editing with syntax highlighting
-    /// - **live-preview**: WYSIWYG-like editing via `codemirror-live-markdown`
-    /// - **reading**: rendered HTML reading view with lazy section rendering
+    /// - **reading**: rendered HTML reading view (Rust-rendered via pulldown-cmark)
     ///
-    /// Manages CodeMirror lifecycle (init, destroy, mode switching, theme switching)
+    /// Manages CodeMirror lifecycle (init, destroy, theme switching)
     /// and dispatches content changes to the parent via the `onchange` callback.
     import { onMount, onDestroy } from 'svelte';
     import { EditorView } from '@codemirror/view';
     import { EditorState, Compartment } from '@codemirror/state';
     import type { EditorMode } from '$lib/types';
-    import { createEditorExtensions, createLivePreviewExtensions } from '$lib/editor-engine/setup';
-    import LazyReadingView from './LazyReadingView.svelte';
-    import { setMouseSelecting } from 'codemirror-live-markdown';
+    import { createEditorExtensions } from '$lib/editor-engine/setup';
+    import ReadingView from './ReadingView.svelte';
     import { darkExtensions } from '$lib/editor-engine/themes/dark';
     import { lightExtensions } from '$lib/editor-engine/themes/light';
     import { getActiveTab, getScrollState, setScrollEdit, setScrollReading } from '$lib/stores/tabs.svelte';
@@ -35,9 +33,8 @@
     let view: EditorView | undefined = $state();
     let isExternalUpdate = false;
 
-    // Reading view scroll container and scroll tracking
     let readingViewEl: HTMLDivElement | undefined = $state();
-    let previousMode: EditorMode = mode;
+    let previousMode: EditorMode | null = null;
     let pendingContent: string | null = null;
 
     function getScrollRatio(el: HTMLElement): number {
@@ -54,35 +51,15 @@
         return getActiveTab()?.path ?? '';
     }
 
-    const livePreviewExtensionsCompartment = new Compartment();
     const themeCompartment = new Compartment();
-
-    function onMouseDown() {
-        if (view && mode === 'live-preview') {
-            view.dispatch({ effects: setMouseSelecting.of(true) });
-        }
-    }
-
-    function onMouseUp() {
-        if (mode === 'live-preview') {
-            requestAnimationFrame(() => {
-                if (view) view.dispatch({ effects: setMouseSelecting.of(false) });
-            });
-        }
-    }
 
     onMount(() => {
         if (!cmContainer) return;
-
-        const isLivePreview = mode === 'live-preview';
 
         const initialState = EditorState.create({
             doc: content,
             extensions: [
                 ...createEditorExtensions(),
-                livePreviewExtensionsCompartment.of(
-                    isLivePreview ? createLivePreviewExtensions() : []
-                ),
                 themeCompartment.of(
                     theme === 'light' ? lightExtensions() : darkExtensions()
                 ),
@@ -103,18 +80,15 @@
             parent: cmContainer
         });
 
-        view.contentDOM.addEventListener('mousedown', onMouseDown);
         view.scrollDOM.addEventListener('scroll', () => {
             const p = pathForContent();
             if (p) setScrollEdit(p, getScrollRatio(view!.scrollDOM));
         });
-        document.addEventListener('mouseup', onMouseUp);
+
         cmContainer.addEventListener('click', onWikilinkClick);
     });
 
     onDestroy(() => {
-        document.removeEventListener('mouseup', onMouseUp);
-        view?.contentDOM.removeEventListener('mousedown', onMouseDown);
         if (cmContainer) cmContainer.removeEventListener('click', onWikilinkClick);
         view?.destroy();
     });
@@ -148,15 +122,6 @@
         view?.focus();
     }
 
-    export function setMode(newMode: EditorMode) {
-        if (!view) return;
-        view.dispatch({
-            effects: livePreviewExtensionsCompartment.reconfigure(
-                newMode === 'live-preview' ? createLivePreviewExtensions() : []
-            )
-        });
-    }
-
     export function setEditorTheme(t: 'dark' | 'light') {
         if (!view) return;
         view.dispatch({
@@ -172,8 +137,6 @@
         const currentDoc = view.state.doc.toString();
         if (content !== currentDoc) {
             if (mode === 'reading') {
-                // Defer content sync when CM is hidden — avoids loading content
-                // into a hidden editor only to re-process it when live preview activates.
                 pendingContent = content;
                 return;
             }
@@ -200,28 +163,22 @@
         return () => el.removeEventListener('scroll', handler);
     });
 
-    // Handle mode transitions: reconfigure CM extensions + flush pending content + restore scroll
+    // Handle mode transitions: flush pending content + restore scroll
     $effect(() => {
         const currentMode = mode;
         if (previousMode === currentMode) return;
         const p = pathForContent();
 
-        // Reconfigure CM extensions for the new mode
-        if (view) {
-            const isLivePreview = currentMode === 'live-preview';
-            const effects = [livePreviewExtensionsCompartment.reconfigure(
-                isLivePreview ? createLivePreviewExtensions() : []
-            )];
-            const tr: { changes?: { from: number; to: number; insert: string }; effects: any } = { effects };
-
-            // Flush any deferred content in the same dispatch as extension reconfigure
-            if (previousMode === 'reading' && pendingContent !== null) {
-                tr.changes = { from: 0, to: view.state.doc.length, insert: pendingContent };
-                pendingContent = null;
-                isExternalUpdate = true;
+        // Flush any deferred content when switching out of reading mode
+        if (previousMode === 'reading' && pendingContent !== null) {
+            if (view) {
+                view.dispatch({
+                    changes: { from: 0, to: view.state.doc.length, insert: pendingContent },
+                    effects: []
+                });
             }
-
-            view.dispatch(tr);
+            pendingContent = null;
+            isExternalUpdate = true;
         }
 
         // Restore scroll position
@@ -244,11 +201,11 @@
     });
 </script>
 
-<div class="editor-wrapper" class:lp-active={mode === 'live-preview'}>
+<div class="editor-wrapper">
     <div class="cm-container" class:cm-hidden={mode === 'reading'} bind:this={cmContainer}></div>
     {#if mode === 'reading'}
         <div class="reading-view" bind:this={readingViewEl}>
-            <LazyReadingView {content} />
+            <ReadingView {content} />
         </div>
     {/if}
 </div>
@@ -259,30 +216,6 @@
         height: 100%;
         overflow: auto;
         position: relative;
-    }
-
-    .editor-wrapper.lp-active {
-        --foreground: 220 9% 87%;
-        --muted-foreground: 220 9% 60%;
-        --md-heading: 220 9% 87%;
-        --md-bold: 220 9% 87%;
-        --md-italic: 220 9% 87%;
-        --background: 220 9% 10%;
-        --muted: 220 9% 15%;
-        --border: 220 9% 30%;
-        --primary: 220 90% 60%;
-    }
-
-    :global(.app.theme-light) .editor-wrapper.lp-active {
-        --foreground: 220 9% 9%;
-        --muted-foreground: 220 9% 46%;
-        --md-heading: 220 9% 9%;
-        --md-bold: 220 9% 9%;
-        --md-italic: 220 9% 9%;
-        --background: 0 0% 100%;
-        --muted: 220 14% 96%;
-        --border: 220 13% 91%;
-        --primary: 220 90% 56%;
     }
 
     .cm-container {
@@ -371,22 +304,6 @@
         cursor: default;
     }
 
-    .editor-wrapper.lp-active :global(.cm-lp-list-visible) {
-        font-size: 1em !important;
-        opacity: 1 !important;
-        display: inline !important;
-    }
-
-    .editor-wrapper.lp-active :global(.cm-formatting-block) {
-        font-size: 0.01em !important;
-        opacity: 0 !important;
-    }
-
-    .editor-wrapper.lp-active :global(.cm-formatting-block-visible) {
-        font-size: 1em !important;
-        opacity: 0.6 !important;
-    }
-
     :global(.cm-wikilink-bracket) { opacity: 0.5; }
     :global(.cm-wikilink-content) { color: var(--accent, #61afef); cursor: pointer; }
     :global(.cm-wikilink-content:hover) { text-decoration: underline; }
@@ -405,26 +322,6 @@
         background: rgba(224, 108, 117, 0.1);
         padding: 2px 6px;
         border-radius: 3px;
-    }
-
-    :global(.cm-image-embed-wrapper) {
-        display: block;
-        margin: 8px 0;
-    }
-    :global(.cm-image-embed-img) {
-        max-width: 100%;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    :global(.cm-image-embed-img:hover) {
-        opacity: 0.9;
-    }
-    :global(.cm-image-embed-error) {
-        filter: grayscale(1);
-        opacity: 0.5;
-        border: 1px dashed var(--border-color, #444);
-        min-width: 48px;
-        min-height: 48px;
     }
 
     :global(.reading-view img.image-embed) {
