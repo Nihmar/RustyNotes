@@ -11,6 +11,14 @@ pub struct NoteEntry {
     pub has_frontmatter: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct TreeNode {
+    pub name: String,
+    pub path: PathBuf,
+    pub is_dir: bool,
+    pub children: Vec<TreeNode>,
+}
+
 pub fn scan_vault(vault_path: &Path) -> Vec<NoteEntry> {
     let mut notes = Vec::new();
     let wikilink_re = Regex::new(r"\[\[([^\]]+)\]\]").unwrap();
@@ -82,4 +90,64 @@ fn parse_note_metadata(content: &str, wikilink_re: &Regex, tag_re: &Regex) -> (V
     }
 
     (tags, wikilinks, has_frontmatter)
+}
+
+pub fn build_file_tree(vault_path: &Path) -> Vec<TreeNode> {
+    build_tree_recursive(vault_path, 0, Some(5))
+}
+
+fn build_tree_recursive(path: &Path, depth: usize, max_depth: Option<usize>) -> Vec<TreeNode> {
+    if let Some(max) = max_depth {
+        if depth >= max {
+            return Vec::new();
+        }
+    }
+
+    let mut children = Vec::new();
+
+    if let Ok(entries) = std::fs::read_dir(path) {
+        let mut dirs = Vec::new();
+        let mut files = Vec::new();
+
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            let entry_path = entry.path();
+            if let Ok(ft) = entry.file_type() {
+                if ft.is_dir() {
+                    // Skip hidden directories
+                    if !name.starts_with('.') {
+                        dirs.push((name, entry_path));
+                    }
+                } else if ft.is_file()
+                    && entry_path.extension().map_or(false, |e| e == "md")
+                {
+                    files.push((name, entry_path));
+                }
+            }
+        }
+
+        // Sort alphabetically, dirs first
+        dirs.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+        files.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+
+        for (name, dir_path) in dirs {
+            children.push(TreeNode {
+                name,
+                path: dir_path.clone(),
+                is_dir: true,
+                children: build_tree_recursive(&dir_path, depth + 1, max_depth),
+            });
+        }
+
+        for (name, file_path) in files {
+            children.push(TreeNode {
+                name,
+                path: file_path,
+                is_dir: false,
+                children: Vec::new(),
+            });
+        }
+    }
+
+    children
 }
