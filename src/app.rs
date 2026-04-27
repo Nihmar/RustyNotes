@@ -5,6 +5,7 @@ use iced::widget::{button, column, container, row, scrollable, text, text_input}
 use iced::{Element, Length, Padding, Task};
 use iced_aw::widget::context_menu::ContextMenu;
 
+use crate::config;
 use crate::vault;
 
 const SIDEBAR_WIDTH: f32 = 250.0;
@@ -21,11 +22,15 @@ pub struct Model {
     pub create_name: String,
     pub rename_target: Option<PathBuf>,
     pub rename_input: String,
+    pub recent_vaults: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     OpenVault,
+    OpenRecentVault(PathBuf),
+    RemoveRecentVault(PathBuf),
+    CloseVault,
     VaultSelected(Option<PathBuf>),
     VaultScanned(Vec<vault::NoteEntry>),
 
@@ -46,7 +51,7 @@ pub enum Message {
     DeleteNote(PathBuf),
 }
 
-pub fn new() -> Model {
+pub fn new(recent_vaults: Vec<PathBuf>) -> Model {
     Model {
         vault_path: None,
         status_message: String::from("Welcome to RustyNotes. Open a vault to get started."),
@@ -59,6 +64,7 @@ pub fn new() -> Model {
         create_name: String::new(),
         rename_target: None,
         rename_input: String::new(),
+        recent_vaults,
     }
 }
 
@@ -75,11 +81,27 @@ pub fn update(model: &mut Model, message: Message) -> Task<Message> {
             Message::VaultSelected,
         ),
 
+        Message::OpenRecentVault(path) => {
+            model.vault_path = Some(path.clone());
+            model.status_message = format!("Scanning vault: {}", path.display());
+            model.expanded_folders.clear();
+            model.selected_note = None;
+
+            add_to_recent(&mut model.recent_vaults, &path);
+            config::save_recent_vaults(&model.recent_vaults);
+
+            Task::perform(async move { vault::scan_vault(&path) }, Message::VaultScanned)
+        }
+
         Message::VaultSelected(Some(path)) => {
             model.vault_path = Some(path.clone());
             model.status_message = format!("Scanning vault: {}", path.display());
             model.expanded_folders.clear();
             model.selected_note = None;
+
+            add_to_recent(&mut model.recent_vaults, &path);
+            config::save_recent_vaults(&model.recent_vaults);
+
             Task::perform(async move { vault::scan_vault(&path) }, Message::VaultScanned)
         }
         Message::VaultSelected(None) => Task::none(),
@@ -214,25 +236,29 @@ pub fn update(model: &mut Model, message: Message) -> Task<Message> {
                 Message::VaultScanned,
             )
         }
+
+        Message::CloseVault => {
+            model.vault_path = None;
+            model.notes.clear();
+            model.file_tree.clear();
+            model.expanded_folders.clear();
+            model.selected_note = None;
+            model.status_message =
+                String::from("Welcome to RustyNotes. Open a vault to get started.");
+            Task::none()
+        }
+
+        Message::RemoveRecentVault(path) => {
+            model.recent_vaults.retain(|p| p != &path);
+            config::save_recent_vaults(&model.recent_vaults);
+            Task::none()
+        }
     }
 }
 
 pub fn view(model: &Model) -> Element<'_, Message> {
     if model.vault_path.is_none() {
-        container(
-            column![
-                text("RustyNotes").size(32),
-                text(&model.status_message).size(16),
-                button("Open Vault").on_press(Message::OpenVault),
-            ]
-            .spacing(20)
-            .align_x(iced::Alignment::Center),
-        )
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .center_x(Length::Fill)
-        .center_y(Length::Fill)
-        .into()
+        build_welcome_screen(model)
     } else {
         let sidebar = build_sidebar(model);
         let center = build_center_panel(model);
@@ -247,6 +273,57 @@ pub fn view(model: &Model) -> Element<'_, Message> {
     }
 }
 
+fn build_welcome_screen(model: &Model) -> Element<'_, Message> {
+    let mut content = column![
+        text("RustyNotes").size(32),
+        text(&model.status_message).size(16),
+        button("Open Vault").on_press(Message::OpenVault),
+    ]
+    .spacing(20)
+    .align_x(iced::Alignment::Center);
+
+    if !model.recent_vaults.is_empty() {
+        let mut recent_column = column![text("Recent vaults:").size(18)].spacing(8);
+
+        for path in &model.recent_vaults {
+            let vault_name = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            let path_display = path.display().to_string();
+
+            let row = row![
+                column![
+                    text(vault_name).size(14),
+                    text(path_display).size(10),
+                ]
+                .spacing(2)
+                .width(Length::Fill),
+                button("Open")
+                    .on_press(Message::OpenRecentVault(path.clone()))
+                    .padding(4),
+                button("✕")
+                    .on_press(Message::RemoveRecentVault(path.clone()))
+                    .padding(4),
+            ]
+            .spacing(8)
+            .align_y(iced::Alignment::Center);
+
+            recent_column = recent_column.push(row);
+        }
+
+        content = content.push(recent_column.width(500));
+    }
+
+    container(content)
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
+        .into()
+}
+
 fn build_sidebar(model: &Model) -> Element<'_, Message> {
     let header = column![
         row![
@@ -258,7 +335,11 @@ fn build_sidebar(model: &Model) -> Element<'_, Message> {
                 .padding(4),
         ]
         .spacing(4),
-        text(&model.status_message).size(11),
+        row![
+            text(&model.status_message).size(11).width(Length::Fill),
+            button("✕").on_press(Message::CloseVault).padding(2),
+        ]
+        .spacing(4),
     ]
     .spacing(4)
     .padding(4);
@@ -487,4 +568,10 @@ fn count_dirs(nodes: &[vault::TreeNode]) -> usize {
         }
     }
     count
+}
+
+fn add_to_recent(recent: &mut Vec<PathBuf>, path: &PathBuf) {
+    recent.retain(|p| p != path);
+    recent.insert(0, path.clone());
+    recent.truncate(10);
 }
